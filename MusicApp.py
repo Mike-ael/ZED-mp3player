@@ -880,19 +880,38 @@ file Location: {musicFilePathList[indexToShowProperties]}
                 self.list.clear()
                 self.searchListSongIndex.clear()
             songStr = str(self.searchSong.get())
-            songStrCapitalized = songStr.title() #capitalizing the first character of the song
-            songInUppercase = songStr.upper()
-            songInLowercase = songStr.lower()
             counter = 0 #counter is used to track the index of the songs being added to the search list box
                         #with respect to the main music list.
-            for song in musicFilenameList:
-                if self.doRegexSearch(songStr, song) is not None or self.doRegexSearch(songStrCapitalized, song)\
-                        or self.doRegexSearch(songInUppercase, song) or self.doRegexSearch(songInLowercase, song):
-                    self.list.append(song)
-                    self.searchListSongIndex.append(counter)
-                counter += 1
-            for elem in self.list:
-                self.searchlistBox.insert(tk.END, elem)
+            #you can also search for songs from multiple artists by separating their names by a comma
+            #separate the names and load them in a list
+            artistNames = [names.strip() for names in songStr.split(",")]
+            if len(artistNames) > 1:
+                for name in artistNames:
+                    nameCapitalized = name.title()
+                    nameInUppercase = name.upper()
+                    nameInLowercase = name.lower()
+                    for song in musicFilenameList:
+                        if self.doRegexSearch(songStr, song) is not None or self.doRegexSearch(nameCapitalized, song) \
+                                or self.doRegexSearch(nameInUppercase, song) or self.doRegexSearch(nameInLowercase, song):
+                            self.list.append(song)
+                            if song not in self.searchListSongIndex:
+                                self.searchListSongIndex.append(counter)
+                        counter += 1
+                    counter = 0
+                for elem in self.list:
+                    self.searchlistBox.insert(tk.END, elem)
+            else:
+                songStrCapitalized = songStr.title()  # capitalizing the first character of the song
+                songInUppercase = songStr.upper()
+                songInLowercase = songStr.lower()
+                for song in musicFilenameList:
+                    if self.doRegexSearch(songStr, song) is not None or self.doRegexSearch(songStrCapitalized, song)\
+                            or self.doRegexSearch(songInUppercase, song) or self.doRegexSearch(songInLowercase, song):
+                        self.list.append(song)
+                        self.searchListSongIndex.append(counter)
+                    counter += 1
+                for elem in self.list:
+                    self.searchlistBox.insert(tk.END, elem)
 
     def processPopup(self, event):
         global popupON
