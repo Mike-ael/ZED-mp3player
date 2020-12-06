@@ -1410,7 +1410,6 @@ file Location: {musicFilePathList[indexToShowProperties]}
                 self.listBox.itemconfig(index= previousSongIndex, foreground= "cyan")
                 self.listBox.itemconfig(index= index, foreground= "#ffA500")
                 if songPlayingFromSearchList:
-                    print("Got here")
                     #this if statement is to check for the times when a song is searched initially, as a previous index is
                     #not yet present.
                     if previousSongIndex in self.searchListSongIndex:
