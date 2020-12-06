@@ -871,25 +871,28 @@ file Location: {musicFilePathList[indexToShowProperties]}
         # called when the user searches for particular items
     def searchForSong(self):
         global searchListBoxEmpty
-        if self.searchSong.get() != "":
+        if self.searchSong.get() == "":
+            pass
+        else:
             searchListBoxEmpty = False
-        if len(self.list) > 0:
-            self.searchlistBox.delete(0, len(self.list))
-            self.list.clear()
-            self.searchListSongIndex.clear()
-        songStr = str(self.searchSong.get())
-        songStrCapitalized = songStr.title() #capitalizing the first character of the song
-        songInUppercase = songStr.upper()
-        songInLowercase = songStr.lower()
-        counter = 0
-        for song in musicFilenameList:
-            if self.doRegexSearch(songStr, song) is not None or self.doRegexSearch(songStrCapitalized, song)\
-                    or self.doRegexSearch(songInUppercase, song) or self.doRegexSearch(songInLowercase, song):
-                self.list.append(song)
-                self.searchListSongIndex.append(counter)
-            counter += 1
-        for elem in self.list:
-            self.searchlistBox.insert(tk.END, elem)
+            if len(self.list) > 0:
+                self.searchlistBox.delete(0, len(self.list))
+                self.list.clear()
+                self.searchListSongIndex.clear()
+            songStr = str(self.searchSong.get())
+            songStrCapitalized = songStr.title() #capitalizing the first character of the song
+            songInUppercase = songStr.upper()
+            songInLowercase = songStr.lower()
+            counter = 0 #counter is used to track the index of the songs being added to the search list box
+                        #with respect to the main music list.
+            for song in musicFilenameList:
+                if self.doRegexSearch(songStr, song) is not None or self.doRegexSearch(songStrCapitalized, song)\
+                        or self.doRegexSearch(songInUppercase, song) or self.doRegexSearch(songInLowercase, song):
+                    self.list.append(song)
+                    self.searchListSongIndex.append(counter)
+                counter += 1
+            for elem in self.list:
+                self.searchlistBox.insert(tk.END, elem)
 
     def processPopup(self, event):
         global popupON
@@ -1221,7 +1224,6 @@ file Location: {musicFilePathList[indexToShowProperties]}
         for _ in range(len(playListNames)):
             currentIndexPlayingInPlaylist[_] = 0
             songPlayingFromPlaylist[_] = False
-        songPlayingFromSearchList = True
 
         if currentEvent != idle:
             global timerStart
@@ -1232,10 +1234,11 @@ file Location: {musicFilePathList[indexToShowProperties]}
         musicTrackerPosition = 0
         try:
             previousSongIndex = currentSong
-            currentSongIndex = self.searchlistBox.curselection()
+            currentSongIndex = self.searchlistBox.curselection()#returns  a tuple
             currentSong = self.searchListSongIndex[currentSongIndex[0]]
             currentIndexPlayingInSearchList = currentSong
             currentEvent = play
+            songPlayingFromSearchList = True
             self.Play(currentSong)
         except IndexError:
             pass
@@ -1406,6 +1409,17 @@ file Location: {musicFilePathList[indexToShowProperties]}
                 # line to make obvious which line in the listbox is active. i.e which music is playing
                 self.listBox.itemconfig(index= previousSongIndex, foreground= "cyan")
                 self.listBox.itemconfig(index= index, foreground= "#ffA500")
+                if songPlayingFromSearchList:
+                    print("Got here")
+                    #this if statement is to check for the times when a song is searched initially, as a previous index is
+                    #not yet present.
+                    if previousSongIndex in self.searchListSongIndex:
+                        self.searchlistBox.itemconfig(index=self.searchListSongIndex.index(previousSongIndex), foreground="cyan")
+                    self.searchlistBox.itemconfig(index = self.searchListSongIndex.index(index), foreground = "#ffA500")
+                elif (songPlayingFromSearchList == False and self.searchlistBox.size() > 0):
+                    for line in range(0, self.searchlistBox.size()):
+                        self.searchlistBox.itemconfig(index= line, \
+                                                      foreground="cyan")
                 musicLength = round(musicLength)
                 self.showTimer(musicLength)
                 minLength = musicLength // 60
@@ -1630,7 +1644,6 @@ file Location: {musicFilePathList[indexToShowProperties]}
                 global currentSong, previousSongIndex
                 global playNext
                 global lengthInPixel
-                global songPlayingFromSearchList
                 global currentIndexPlayingInSearchList
                 global currentIndexPlayingInPlaylist
                 global playListNames
