@@ -1,0 +1,7 @@
+*.exe
+*.txt
+*.gif
+*.idea
+*.log 
+image manipulation.py
+__pycache__/
