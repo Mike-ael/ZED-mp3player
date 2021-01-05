@@ -17,6 +17,7 @@ def update():
         for file in input.readlines():
             musicFilenameList.append(file.strip())
     with open('songpath.txt', 'r') as input:
-        tempList = input.readlines()
-        for i in range(len(tempList)):
-            musicFilePathList.append(os.path.join(tempList[i].strip(), musicFilenameList[i].strip()))
+        i = 0
+        for file in input.readlines():
+            musicFilePathList.append(os.path.join(file.strip(), musicFilenameList[i]))
+            i += 1

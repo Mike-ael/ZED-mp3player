@@ -404,6 +404,7 @@ class MusicPlayerGUI:
             tkinter.messagebox.showinfo('Download Message', f'Download Complete')
             self.updateSongList()
         else:
+            #get the last error that was queued
             for i in range(errorString.qsize() - 1):
                 throwAwayVariable = errorString.get()
             tkinter.messagebox.showerror('Error Message', f'{errorString.get()}')
