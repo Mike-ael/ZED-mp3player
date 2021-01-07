@@ -5,8 +5,8 @@
 #include <mutex>
 #include <vector>
 #include <string_view>
-#include <algorithm>
 #include <fstream>
+#include <thread>
 namespace fs = std::filesystem;
 
 namespace os {
@@ -47,12 +47,10 @@ public:
 	}
 private:
 	std::mutex mut;
-	std::ostringstream output1;
-	std::ostringstream output2;
-	std::fstream outputFile1;
-	std::fstream outputFile2;
-	std::string path1 = R"(C:\Users\HP\PycharmProjects\new music player\songpath.txt)";
-	std::string path2 = R"(C:\Users\HP\PycharmProjects\new music player\songfile.txt)";
+	std::ostringstream output1, output2;
+	std::fstream outputFile1, outputFile2;
+	std::string path1 = R"(songpath.txt)",
+		path2 = R"(songfile.txt)";
 };
 auto resource = sharedResource();
 
@@ -82,12 +80,18 @@ void searchDrive(fs::path folder)
 int main() {
 	fs::path rootFolder = "C:\\";
 	auto list = os::path().listdir(rootFolder);
-	std::vector<std::thread> thread_list(std::size(list));
+	std::vector<std::thread> thread_list;
+	thread_list.reserve(std::size(list));
 	auto counter{ 0 };
 
-	for (auto i{ 0u }; i < std::size(list); ++i) {
-		thread_list[i] = std::thread(searchDrive, rootFolder.string() + list[i]);
+	for (auto &folder : list) {
+		if (folder == "Windows")
+			continue;
+		else {
+			thread_list.emplace_back(std::thread(searchDrive, rootFolder.string() + folder));
+		}
 	}
+
 	for (auto& thread : thread_list) {
 		thread.join();
 	}
