@@ -1,58 +1,95 @@
 #include <filesystem>
 #include <sstream>
-#include <fstream>
-#include <thread>
 #include <vector>
 #include <string>
-using namespace std::literals::chrono_literals;
+#include <mutex>
+#include <vector>
+#include <string_view>
+#include <algorithm>
+#include <fstream>
 namespace fs = std::filesystem;
-void collectFileName(std::string fileName)
-{
-	std::fstream outputFile(R"(C:\Users\HP\PycharmProjects\new music player\)" + fileName, std::ios_base::out);
-	fs::path inPath = "C:\\";
-	auto isFile = [](const fs::path file) {return file.filename().extension() == ".mp3"; };
-	std::ostringstream output;
-	if (fs::exists(inPath) && fs::is_directory(inPath))
-	{
-		for (auto const& entry : fs::recursive_directory_iterator(inPath, fs::directory_options::skip_permission_denied)) {
-			try {
-				if (isFile(entry)) {
-					output << entry.path().filename().string() << "\n";
-					
-				}
+
+namespace os {
+	class path {
+	public:
+		path() = default;
+		std::vector<std::string> listdir(const fs::path& path) {
+			std::vector<std::string> dirList;
+			dirList.reserve(10);
+			for (auto& file : fs::directory_iterator(path)) {
+				dirList.emplace_back(file.path().relative_path().string());
+				if (dirList.capacity() == dirList.size())
+					dirList.reserve(10);
 			}
-			catch (std::filesystem::filesystem_error const& error) {}
-			catch (std::exception const& error) {}
+			dirList.shrink_to_fit();
+			return dirList;
 		}
-	}
-	outputFile << output.str();
-	outputFile.close();
+	};
 }
-void collectFilePath(std::string fileName)
+class sharedResource {
+public:
+	sharedResource() {
+		outputFile1.open(path1, std::ios_base::out);
+		outputFile2.open(path2, std::ios_base::out);
+	}
+	void write(std::string_view file1, std::string_view file2) {
+		std::lock_guard<std::mutex> guard(mut);
+		outputFile1 << file1;
+		outputFile2 << file2;
+	}
+	void print() {
+		if (outputFile1.is_open() && outputFile2.is_open()) {
+			outputFile1 << output1.str();
+			outputFile2 << output2.str();
+		}
+		outputFile1.close();
+		outputFile2.close();
+	}
+private:
+	std::mutex mut;
+	std::ostringstream output1;
+	std::ostringstream output2;
+	std::fstream outputFile1;
+	std::fstream outputFile2;
+	std::string path1 = R"(C:\Users\HP\PycharmProjects\new music player\songpath.txt)";
+	std::string path2 = R"(C:\Users\HP\PycharmProjects\new music player\songfile.txt)";
+};
+auto resource = sharedResource();
+
+void searchDrive(fs::path folder)
 {
-	std::fstream outputFile(R"(C:\Users\HP\PycharmProjects\new music player\)" + fileName, std::ios_base::out);
-	fs::path inPath = "C:\\";
 	auto isFile = [](const fs::path file) {return file.filename().extension() == ".mp3"; };
-	std::ostringstream output;
-	if (fs::exists(inPath) && fs::is_directory(inPath))
-	{
-		for (auto const& entry : fs::recursive_directory_iterator(inPath, fs::directory_options::skip_permission_denied)) {
-			try {
-				if (isFile(entry)) {
-					output << entry.path().parent_path().string() << "\n";
+	std::ostringstream threadIO1, threadIO2;
+	try {
+		if (fs::exists(folder) && fs::is_directory(folder))
+		{
+			for (auto const& entry : fs::recursive_directory_iterator(folder, fs::directory_options::skip_permission_denied)) {
+				try {
+					if (isFile(entry)) {
+						threadIO1 << entry.path().filename().string() << "\n";
+						threadIO2 << entry.path().parent_path().string() << "\n";
+					}
 				}
+				catch (fs::filesystem_error const& error) {}
+				catch (std::exception const& error) {}
 			}
-			catch (std::filesystem::filesystem_error const& error) {}
-			catch (std::exception const& error) {}
+			resource.write(threadIO2.str(), threadIO1.str());
 		}
 	}
-	outputFile << output.str();
-	outputFile.close();
+	catch (fs::filesystem_error const& error) {}
+	catch (std::exception const& error) {}
 }
 int main() {
-	std::vector<std::thread> fileThreads(2);
-	fileThreads.at(0) = (std::thread(collectFileName, std::string{ "songfile.txt" }));
-	fileThreads.at(1) = (std::thread(collectFilePath, std::string{ "songpath.txt" }));
-	for (auto& thread : fileThreads)
+	fs::path rootFolder = "C:\\";
+	auto list = os::path().listdir(rootFolder);
+	std::vector<std::thread> thread_list(std::size(list));
+	auto counter{ 0 };
+
+	for (auto i{ 0u }; i < std::size(list); ++i) {
+		thread_list[i] = std::thread(searchDrive, rootFolder.string() + list[i]);
+	}
+	for (auto& thread : thread_list) {
 		thread.join();
+	}
+	resource.print();
 }
