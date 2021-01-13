@@ -164,8 +164,11 @@ class MusicPlayerGUI:
         self.tabcontrol.add(tab3, text = '    Search    ')
         self.tabs.append(tab3)
         tab4 = ttk.Frame(self.tabcontrol)
-        self.tabcontrol.add(tab4, text = '    Download   ')
+        self.tabcontrol.add(tab4, text = '    Music Download   ')
         self.tabs.append(tab4)
+        tab5 = ttk.Frame(self.tabcontrol)
+        self.tabcontrol.add(tab5, text= '    Video Download   ')
+        self.tabs.append(tab5)
         self.tabcontrol.pack()
         self.beginTime = tk.StringVar()
         self.endTime = tk.StringVar()
@@ -199,6 +202,8 @@ class MusicPlayerGUI:
         self.repeatOnceImage = tk.PhotoImage(file = 'repeat1.gif')
         searchImage = tk.PhotoImage(file = 'search.gif')
         webImage = tk.PhotoImage(file='_landscape2.gif')
+        videoDownloadImage = tk.PhotoImage(file = 'd1.gif')
+        videoDownloadCancelImage = tk.PhotoImage(file = 'd2.gif')
         self.repeat = Repeat()
         self.repeatVar = tk.IntVar()
         # playlist menu
@@ -279,6 +284,41 @@ class MusicPlayerGUI:
         downloadCanvas = tk.Canvas(tab4, width = 1050, height = 350, bg = "#000000")
         downloadCanvas.pack()
         downloadCanvas.create_image(530, 175, image=webImage)
+
+        self.videoFrame = tk.Frame(tab5, bg = '#000000', width = 1050, height = 200)
+        self.videoFrame.grid_propagate(0)
+        self.videoFrame.pack()
+        downloadVideoCanvas = tk.Canvas(tab5, width=1050, height = 222, bg="#000000")
+        downloadVideoCanvas.pack()
+        downloadVideoCanvas.create_image(530, 100, image=webImage)
+
+        self.movieName = tk.StringVar()
+        self.episode = tk.StringVar()
+        self.season = tk.StringVar()
+        self.website = tk.StringVar()
+
+        ttk.Label(self.videoFrame, text = 'Website:').grid(row=0, column = 0, padx = 5, pady = 5, sticky= tk.W)
+        website_chosen = ttk.Combobox(self.videoFrame, width = 50, textvariable = self.website, state= 'readonly')
+        website_chosen['values'] = ("Netnaija", "TFPDL")
+        website_chosen.grid(row = 0, column = 1)
+        website_chosen.current(1)
+
+        ttk.Label(self.videoFrame, text='Movie Name:').grid(row=1, column=0, padx=5, pady=5, sticky = tk.W)
+        ttk.Entry(self.videoFrame, textvariable=self.movieName, justify=tk.LEFT, width=53). \
+            grid(row=1, column=1, padx=5, pady=5)
+        ttk.Label(self.videoFrame, text='Season:').grid(row=2, column=0, padx=5, pady=5, sticky = tk.W)
+        season = ttk.Combobox(self.videoFrame, width = 50, textvariable = self.season)
+        season['values'] = (1,2,3,4,5,6,7,8,9,10)
+        season.grid(row = 2, column = 1, padx = 5, pady = 5)
+        ttk.Label(self.videoFrame, text='Episode:').grid(row=3, column=0, padx=5, pady=5, sticky = tk.W)
+        episode = ttk.Combobox(self.videoFrame, width=50, textvariable=self.episode)
+        episode['values'] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        episode.grid(row=3, column=1, padx=5, pady=5)
+        ttk.Button(self.videoFrame, image=videoDownloadImage, command=self.searchVideoInWeb).\
+            grid(row=4, column=0, padx=5, pady=5, sticky = tk.S)
+        ttk.Button(self.videoFrame, image=videoDownloadCancelImage, command=self.cancelDownload). \
+            grid(row=4, column=1, padx=5, pady=5, sticky = tk.S)
+
         # display playlists tabs if any
         self.playlistListBox = []
         self.playlistFrame = []
@@ -408,6 +448,12 @@ class MusicPlayerGUI:
             for i in range(errorString.qsize() - 1):
                 throwAwayVariable = errorString.get()
             tkinter.messagebox.showerror('Error Message', f'{errorString.get()}')
+
+    def searchVideoInWeb(self):
+        pass
+
+    def cancelDownload(self):
+        pass
 
     def updateSongList(self):
         global genreList, artistList, albumList, songYear, songNameList
@@ -1117,7 +1163,7 @@ file Location: {musicFilePathList[indexToShowProperties]}
         '''
         if called == 0:
             self.showPopup(event, called + 1)
-        elif called == 1 and self.rightClickedTab > 3:
+        elif called == 1 and self.rightClickedTab > 4:
             self.deleteMenu.post(event.x_root, event.y_root)
 
     def showPopup(self, event, called):
