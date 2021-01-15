@@ -28,6 +28,10 @@ from PIL import Image
 from io import BytesIO
 from voicemessages import downloadMessage
 from voicemessages import musicSearchMessage
+from netnaijaScraper import VideoDownLoad
+from netnaijaScraper import ElementClickInterceptedException, TimeoutException
+from netnaijaScraper import NoSuchElementException, WebDriverException
+from netnaijaScraper import videoDownloadErrors, videoDownloadNotification
 from loadMusicProperties import genreList, artistList, albumList, songYear, songNameList
 pygame.mixer.pre_init(44100, 16, 2, 1024 * 4)
 pygame.init()
@@ -288,9 +292,9 @@ class MusicPlayerGUI:
         self.videoFrame = tk.Frame(tab5, bg = '#000000', width = 1050, height = 200)
         self.videoFrame.grid_propagate(0)
         self.videoFrame.pack()
-        downloadVideoCanvas = tk.Canvas(tab5, width=1050, height = 222, bg="#000000")
-        downloadVideoCanvas.pack()
-        downloadVideoCanvas.create_image(530, 100, image=webImage)
+        #downloadVideoCanvas = tk.Canvas(tab5, width=1050, height = 222, bg="#000000")
+        #downloadVideoCanvas.pack()
+        #downloadVideoCanvas.create_image(530, 100, image=webImage)
 
         self.movieName = tk.StringVar()
         self.episode = tk.StringVar()
@@ -444,16 +448,48 @@ class MusicPlayerGUI:
             tkinter.messagebox.showinfo('Download Message', f'Download Complete')
             self.updateSongList()
         else:
-            #get the last error that was queued
-            for i in range(errorString.qsize() - 1):
-                throwAwayVariable = errorString.get()
             tkinter.messagebox.showerror('Error Message', f'{errorString.get()}')
 
     def searchVideoInWeb(self):
-        pass
+        if self.website.get() == 'Netnaija':
+            downloadThread = Thread(target=self.scrapeNetnaija, args=())
+            downloadThread.setDaemon(True)
+            downloadThread.start()
+        elif self.website.get() == 'TFPDL':
+            pass
+
+    def scrapeNetnaija(self):
+        try:
+            self.download = VideoDownLoad()
+            mp4Link, srtLink = self.download.findFileLink(self.movieName.get(), self.season, self.episode.get())
+            downloadThreads = []
+            downloadThreads.append(Thread(target=self.download.startSRTDownload, args=[srtLink]))
+            downloadThreads.append(Thread(target=self.download.startMP4Download, args=[mp4Link]))
+            for thread in downloadThreads:
+                thread.start()
+            for thread in downloadThreads:
+                thread.join()
+        except IndexError:
+            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+        except ElementClickInterceptedException:
+            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+        except TimeoutException:
+            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+        except NoSuchElementException:
+            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+        except WebDriverException:
+            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+        except BaseException:
+            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+        finally:
+            if videoDownloadNotification.qsize() == 2:
+                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
 
     def cancelDownload(self):
-        pass
+        try:
+            self.download.quitDownload()
+        except AttributeError:
+            pass
 
     def updateSongList(self):
         global genreList, artistList, albumList, songYear, songNameList

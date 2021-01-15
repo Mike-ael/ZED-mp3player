@@ -2,12 +2,13 @@ import time
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 from threading import Thread
 import os
 import datetime
 from voicemessages import musicFoundMessage
-def checkFilePresence(downloadPath, numberOfFilesInitially, timeNow, artistName, songTitle):
+def checkFilePresence(downloadPath, numberOfFilesInitially, timeNow):
     found = False
     while not found:
         numberOfFilesNow = len(os.listdir(downloadPath))
@@ -35,9 +36,9 @@ def mp3pawscraper(artistName, songTitle):
     driver = webdriver.Chrome(options=chrome_options)
     try:
         driver.get(webUrl)
-    except:
+    except WebDriverException as error:
         driver.quit()
-        raise
+        raise error
     driver.get_cookies()
     searchElem = driver.find_element_by_id('search')
     keyword = artistName + " " + songTitle
@@ -66,14 +67,14 @@ def mp3pawscraper(artistName, songTitle):
             buttons[7].click()
             time.sleep(1)
             break
-        except ElementClickInterceptedException:
+        except ElementClickInterceptedException as error:
             driver.quit()
-            raise
-        except BaseException:
+            raise error
+        except WebDriverException as error:
             driver.quit()
-            raise
+            raise error
     musicFoundMessage()
-    fileChecker = Thread(target=checkFilePresence, args=[path, numberOfFilesInitially, timeNow, artistName, songTitle])
+    fileChecker = Thread(target=checkFilePresence, args=[path, numberOfFilesInitially, timeNow])
     fileChecker.start()
     fileChecker.join()
     driver.quit()
