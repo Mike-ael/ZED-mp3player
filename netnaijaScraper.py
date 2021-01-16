@@ -57,11 +57,6 @@ class VideoDownLoad():
         try:
             self.driver2 = webdriver.Chrome(options=self.chromeOptions)
             self.driver2.get(link)
-        except WebDriverException as error:
-            self.driver2.quit()
-            videoDownloadErrors.put(error)
-            raise error
-        try:
             self.headlessDownloadRequirement(self.driver2)
             numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
             timeNow = datetime.datetime.now()
@@ -83,7 +78,7 @@ class VideoDownLoad():
             videoDownloadErrors.put(error)
             self.driver2.quit()
             raise error
-        finally:
+        else:
             self.driver2.quit()
 
     def startMP4Download(self, link):
@@ -91,11 +86,6 @@ class VideoDownLoad():
         try:
             self.driver1 = webdriver.Chrome(options=self.chromeOptions)
             self.driver1.get(link)
-        except WebDriverException as error:
-            self.driver1.quit()
-            videoDownloadErrors.put(error)
-            raise error
-        try:
             self.headlessDownloadRequirement(self.driver1)
             numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
             timeNow = datetime.datetime.now()
@@ -116,13 +106,16 @@ class VideoDownLoad():
             videoDownloadErrors.put(error)
             self.driver1.quit()
             raise error
-        finally:
+        else:
             self.driver1.quit()
 
     def quitDownload(self):
-        self.driver.quit()
-        self.driver1.quit()
-        self.driver2.quit()
+        try:
+            self.driver.quit()
+            self.driver1.quit()
+            self.driver2.quit()
+        except BaseException:
+            pass
 
 
     def search(self, string, link):
@@ -144,11 +137,6 @@ class VideoDownLoad():
             try:
                 self.driver = webdriver.Chrome(options=self.chromeOptions)
                 self.driver.get("http://netnaija.com/search")
-            except WebDriverException as error:
-                self.driver.quit()
-                videoDownloadErrors.put(error)
-                raise error
-            try:
                 input1 = self.driver.find_element_by_css_selector("div[class = 'row'] div[class='input'] input")
                 for elem in movieName:
                     input1.send_keys(elem)
@@ -179,29 +167,39 @@ class VideoDownLoad():
                                                                             page-listing'] span[class = 'a-page'] a[title = 'Next Page']''')))
                             print("Going to the next page")
                             nextPage.click()
-                        except NoSuchAttributeException as error:
-                            print("ERROR: {}".format(error))
-                            self.found = True
-                            break
+                        except NoSuchElementException as error:
+                            self.driver.quit()
+                            videoDownloadErrors.put(error)
+                            raise error
                         links = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''div[id= 'search-page'] \
                                                                     div[id = 'search-results'] main[class = 'search-results-list'] article[class = 'result']\
                                                                                     div[class = 'result-info'] h3[class = 'result-title'] a''')))
                 seasonLinks = self.driver.find_elements_by_css_selector("""article[class = 'a-file'] div[class = 'info'] h3[class = 'file-name'] a""")
+                #repurposing self.found
+                self.found = False
                 for link in seasonLinks:
                     l = link.get_attribute('href')
                     print(l)
                     if self.search(episode, str(l)) and self.search(season, str(l)):
                         print(f'found link -> {l}')
+                        self.found = True
                         link.click()
                         break
-                downloadLinks = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''article[class = 'video-file'] div[class ='video-plain'] 
-                                                                                                div[class = 'video-download'] p a''')))
-                print(len(downloadLinks))
-                self.mp4Link = downloadLinks[3].get_attribute('href')
-                self.srtLink = downloadLinks[4].get_attribute('href')
+                if self.found == False:
+                    raise FileNotFoundError()
+                else:
+                    downloadLinks = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''article[class = 'video-file'] div[class ='video-plain'] 
+                                                                                                    div[class = 'video-download'] p a''')))
+                    print(len(downloadLinks))
+                    self.mp4Link = downloadLinks[3].get_attribute('href')
+                    self.srtLink = downloadLinks[4].get_attribute('href')
             except IndexError as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error)
+                raise error
+            except FileNotFoundError as error:
+                self.driver.quit()
+                videoDownloadErrors.put("ERROR: FILE NOT FOUND")
                 raise error
             except ElementClickInterceptedException as error:
                 self.driver.quit()
@@ -219,6 +217,6 @@ class VideoDownLoad():
                 self.driver.quit()
                 videoDownloadErrors.put(error)
                 raise error
-            finally:
+            else:
                 self.driver.quit()
                 return self.mp4Link, self.srtLink

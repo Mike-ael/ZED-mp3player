@@ -469,6 +469,8 @@ class MusicPlayerGUI:
                 thread.join()
         except IndexError:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+        except FileNotFoundError:
+            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except ElementClickInterceptedException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except TimeoutException:
@@ -479,7 +481,7 @@ class MusicPlayerGUI:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
-        finally:
+        else:
             if videoDownloadNotification.qsize() == 2:
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
