@@ -12,9 +12,9 @@ from queue import Queue
 import os
 import datetime
 from threading import Thread
+from typing import List
 chromeOptions = Options()
 chromeOptions.add_argument('--disable-notifications')
-fileLink = []
 videoDownloadErrors = Queue(maxsize=1)
 videoDownloadNotification = Queue(maxsize=2)
 
@@ -23,6 +23,8 @@ class VideoDownLoad():
         self.driver = None
         self.driver1 = None
         self.driver2 = None
+        self.mp4Link = None
+        self.srtLink = None
         self.downloadPath = r'C:\Users\HP\Downloads'
 
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
@@ -88,7 +90,6 @@ class VideoDownLoad():
         return string in link
 
     def findFileLink(self, movie_name, _season=0, _episode=0):
-        global fileLink
         if movie_name == '':
             videoDownloadErrors.put('ERROR: Movie name field cannot be empty')
             raise
@@ -110,36 +111,49 @@ class VideoDownLoad():
                 input2 = self.driver.find_element_by_css_selector("div[class = 'row'] div[class='input'] select")
                 input2.send_keys(folder)
                 input2.submit()
-                sleep(3)
-                links = self.driver.find_elements_by_css_selector('''div[id= 'search-page'] div[id = 'search-results'] main[class = 'search-results-list'] \
-                                                             article[class = 'result'] div[class = 'result-info'] h3[class = 'result-title'] a''')
+                links = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''div[id= 'search-page'] \
+                                                            div[id = 'search-results'] main[class = 'search-results-list'] article[class = 'result'] \
+                                                            div[class = 'result-info'] h3[class = 'result-title'] a''')))
                 self.found = False
                 while not self.found:
                     for link in links:
                         l = link.get_attribute('href')
                         print(l)
-                        if self.search(episode, str(l)) and self.search(season, str(l)):
+                        if self.search(season, str(l)):
                             print(f'found link -> {l}')
                             self.found = True
-                            link.click()
+                            parts: List = str(l).replace('https://', '').split('/')
+                            parts.pop()
+                            seasonFolder: str = 'https://' + '/'.join(parts)
+                            print(seasonFolder)
+                            self.driver.get(seasonFolder)
                             break
                     if not self.found:
                         try:
-                            nextPage = self.driver.find_element_by_css_selector('''div[class = 'pages'] div[class = 'page-listing'] span[class = 'a-page'] \
-                                                                        a[title = 'Next Page']''')
+                            nextPage = WebDriverWait(self.driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, '''div[class = 'pages'] div[class = '\
+                                                                            page-listing'] span[class = 'a-page'] a[title = 'Next Page']''')))
                             print("Going to the next page")
                             nextPage.click()
                         except NoSuchAttributeException as error:
                             print("ERROR: {}".format(error))
                             self.found = True
                             break
-                        links = self.driver.find_elements_by_css_selector('''div[id= 'search-page'] div[id = 'search-results'] main[class = 'search-results-list'] \
-                                                                         article[class = 'result'] div[class = 'result-info'] h3[class = 'result-title'] a''')
+                        links = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''div[id= 'search-page'] \
+                                                                    div[id = 'search-results'] main[class = 'search-results-list'] article[class = 'result']\
+                                                                                    div[class = 'result-info'] h3[class = 'result-title'] a''')))
+                seasonLinks = self.driver.find_elements_by_css_selector("""article[class = 'a-file'] div[class = 'info'] h3[class = 'file-name'] a""")
+                for link in seasonLinks:
+                    l = link.get_attribute('href')
+                    print(l)
+                    if self.search(episode, str(l)) and self.search(season, str(l)):
+                        print(f'found link -> {l}')
+                        link.click()
+                        break
                 downloadLinks = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''article[class = 'video-file'] div[class ='video-plain'] 
                                                                                                 div[class = 'video-download'] p a''')))
                 print(len(downloadLinks))
-                for index in range(3, 5):
-                    fileLink.append(downloadLinks[index].get_attribute('href'))
+                self.mp4Link = downloadLinks[3].get_attribute('href')
+                self.srtLink = downloadLinks[4].get_attribute('href')
             except IndexError as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error)
@@ -162,4 +176,4 @@ class VideoDownLoad():
                 raise
             finally:
                 self.driver.quit()
-                return fileLink[0], fileLink[1]
+                return self.mp4Link, self.srtLink
