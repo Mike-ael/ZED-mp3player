@@ -26,8 +26,7 @@ from loadMusicProperties import loadProperties
 from mutagen.id3 import ID3
 from PIL import Image
 from io import BytesIO
-from voicemessages import downloadMessage
-from voicemessages import musicSearchMessage
+from voicemessages import downloadMessage, searchMessage
 from netnaijaScraper import VideoDownLoad
 from netnaijaScraper import ElementClickInterceptedException, TimeoutException
 from netnaijaScraper import NoSuchElementException, WebDriverException
@@ -436,7 +435,7 @@ class MusicPlayerGUI:
     def searchSongInWeb(self):
         searchThread = Thread(target=self.scrapeMusic, args=[])
         searchThread.setDaemon(True)
-        musicSearchMessage()
+        searchMessage()
         searchThread.start()
 
     def scrapeMusic(self):
@@ -452,6 +451,7 @@ class MusicPlayerGUI:
 
     def searchVideoInWeb(self):
         if self.website.get() == 'Netnaija':
+            searchMessage()
             downloadThread = Thread(target=self.scrapeNetnaija, args=())
             downloadThread.setDaemon(True)
             downloadThread.start()
@@ -483,6 +483,7 @@ class MusicPlayerGUI:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         finally:
             if videoDownloadNotification.qsize() == 2:
+                downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
             while not videoDownloadNotification.empty():
                 tempVar = videoDownloadNotification.get()

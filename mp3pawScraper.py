@@ -7,7 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from threading import Thread
 import os
 import datetime
-from voicemessages import musicFoundMessage
+from voicemessages import fileFoundMessage
 def checkFilePresence(downloadPath, numberOfFilesInitially, timeNow):
     found = False
     while not found:
@@ -73,7 +73,7 @@ def mp3pawscraper(artistName, songTitle):
         except WebDriverException as error:
             driver.quit()
             raise error
-    musicFoundMessage()
+    fileFoundMessage()
     fileChecker = Thread(target=checkFilePresence, args=[path, numberOfFilesInitially, timeNow])
     fileChecker.start()
     fileChecker.join()

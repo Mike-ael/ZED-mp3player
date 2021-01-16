@@ -10,24 +10,26 @@ def downloadMessage():
     except RuntimeError:
         pass
 
-def musicSearchMessage():
+def searchMessage():
     try:
         voice = pyttsx3.init()
         voice.setProperty('volume', 1.0)
-        voice.say('Searching for music file')
+        voice.say('Searching for file')
         voice.runAndWait()
         return
     except RuntimeError:
         pass
 
 
-def musicFoundMessage():
+def fileFoundMessage():
     try:
         voice = pyttsx3.init()
         voice.setProperty('volume', 1.0)
-        voice.say('Music file found!! Download started.')
+        voice.say('file found!! Download started.')
         voice.runAndWait()
         return
     except RuntimeError:
         pass
+
+
 

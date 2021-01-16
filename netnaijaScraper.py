@@ -13,19 +13,25 @@ import os
 import datetime
 from threading import Thread
 from typing import List
-chromeOptions = Options()
-chromeOptions.add_argument('--disable-notifications')
+from voicemessages import fileFoundMessage
 videoDownloadErrors = Queue(maxsize=1)
 videoDownloadNotification = Queue(maxsize=2)
 
 class VideoDownLoad():
     def __init__(self):
+        self.chromeOptions = Options()
+        self.chromeOptions.add_argument('--disable-notifications')
+        self.chromeOptions.add_argument('--headless')
         self.driver = None
         self.driver1 = None
         self.driver2 = None
         self.mp4Link = None
         self.srtLink = None
         self.downloadPath = r'C:\Users\HP\Downloads'
+
+    def headlessDownloadRequirement(self, driver):
+        params = {'behavior': 'allow', 'downloadPath': self.downloadPath}
+        driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
 
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
         downloadPath = r'C:\Users\HP\Downloads'
@@ -47,9 +53,11 @@ class VideoDownLoad():
                             pass
 
     def startSRTDownload(self, link):
-        self.driver2 = webdriver.Chrome(options=chromeOptions)
+        fileFoundMessage()
+        self.driver2 = webdriver.Chrome(options=self.chromeOptions)
         self.driver2.get(link)
         try:
+            self.headlessDownloadRequirement(self.driver2)
             numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
             timeNow = datetime.datetime.now()
             downloadButton = self.driver2.find_element_by_css_selector(
@@ -65,9 +73,10 @@ class VideoDownLoad():
             self.driver2.quit()
 
     def startMP4Download(self, link):
-        self.driver1 = webdriver.Chrome(options=chromeOptions)
+        self.driver1 = webdriver.Chrome(options=self.chromeOptions)
         self.driver1.get(link)
         try:
+            self.headlessDownloadRequirement(self.driver1)
             numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
             timeNow = datetime.datetime.now()
             downloadButton = self.driver1.find_element_by_css_selector("""div[id = 'app-content'] div[id = 'file-page'] div[id = 'action-buttons'] button""")
@@ -102,7 +111,7 @@ class VideoDownLoad():
             folder = "Video"
             print(season, episode)
             try:
-                self.driver = webdriver.Chrome(options=chromeOptions)
+                self.driver = webdriver.Chrome(options=self.chromeOptions)
                 self.driver.get("http://netnaija.com/search")
                 input1 = self.driver.find_element_by_css_selector("div[class = 'row'] div[class='input'] input")
                 for elem in movieName:
