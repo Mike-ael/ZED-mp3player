@@ -461,7 +461,7 @@ class MusicPlayerGUI:
     def scrapeNetnaija(self):
         try:
             self.download = VideoDownLoad()
-            mp4Link, srtLink = self.download.findFileLink(self.movieName.get(), self.season, self.episode.get())
+            mp4Link, srtLink = self.download.findFileLink(self.movieName.get(), self.season.get(), self.episode.get())
             downloadThreads = []
             downloadThreads.append(Thread(target=self.download.startSRTDownload, args=[srtLink]))
             downloadThreads.append(Thread(target=self.download.startMP4Download, args=[mp4Link]))
@@ -484,8 +484,15 @@ class MusicPlayerGUI:
         finally:
             if videoDownloadNotification.qsize() == 2:
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
+            while not videoDownloadNotification.empty():
+                tempVar = videoDownloadNotification.get()
+
 
     def cancelDownload(self):
+        cancelThread = Thread(target=self.cancel, args=[], daemon=True)
+        cancelThread.start()
+
+    def cancel(self):
         try:
             self.download.quitDownload()
         except AttributeError:

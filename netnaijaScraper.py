@@ -4,6 +4,9 @@ from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException, NoSuchAttributeException
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from time import sleep
 from queue import Queue
 import os
@@ -76,7 +79,7 @@ class VideoDownLoad():
             self.driver1.quit()
 
     def quitDownload(self):
-        self.driver.quit
+        self.driver.quit()
         self.driver1.quit()
         self.driver2.quit()
 
@@ -96,6 +99,7 @@ class VideoDownLoad():
             if season == 'season-0' or episode == 'episode-0':
                 season, episode = '', ''
             folder = "Video"
+            print(season, episode)
             try:
                 self.driver = webdriver.Chrome(options=chromeOptions)
                 self.driver.get("http://netnaija.com/search")
@@ -109,33 +113,33 @@ class VideoDownLoad():
                 sleep(3)
                 links = self.driver.find_elements_by_css_selector('''div[id= 'search-page'] div[id = 'search-results'] main[class = 'search-results-list'] \
                                                              article[class = 'result'] div[class = 'result-info'] h3[class = 'result-title'] a''')
-                found = False
-                while not found:
+                self.found = False
+                while not self.found:
                     for link in links:
                         l = link.get_attribute('href')
                         print(l)
                         if self.search(episode, str(l)) and self.search(season, str(l)):
                             print(f'found link -> {l}')
-                            found = True
+                            self.found = True
                             link.click()
                             break
-                    if not found:
-                        print("Going to the next page")
+                    if not self.found:
                         try:
                             nextPage = self.driver.find_element_by_css_selector('''div[class = 'pages'] div[class = 'page-listing'] span[class = 'a-page'] \
                                                                         a[title = 'Next Page']''')
+                            print("Going to the next page")
                             nextPage.click()
                         except NoSuchAttributeException as error:
                             print("ERROR: {}".format(error))
-                            found = True
+                            self.found = True
                             break
                         links = self.driver.find_elements_by_css_selector('''div[id= 'search-page'] div[id = 'search-results'] main[class = 'search-results-list'] \
                                                                          article[class = 'result'] div[class = 'result-info'] h3[class = 'result-title'] a''')
-                downloadLinks = self.driver.find_elements_by_css_selector('''article[class = 'video-file'] div[class ='video-plain'] div[class = 'video-download'] p a''')
+                downloadLinks = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''article[class = 'video-file'] div[class ='video-plain'] 
+                                                                                                div[class = 'video-download'] p a''')))
                 print(len(downloadLinks))
                 for index in range(3, 5):
                     fileLink.append(downloadLinks[index].get_attribute('href'))
-                self.driver.quit()
             except IndexError as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error)
@@ -156,4 +160,6 @@ class VideoDownLoad():
                 self.driver.quit()
                 videoDownloadErrors.put(error)
                 raise
-            return fileLink[0], fileLink[1]
+            finally:
+                self.driver.quit()
+                return fileLink[0], fileLink[1]
