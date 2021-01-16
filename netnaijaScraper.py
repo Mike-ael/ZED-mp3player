@@ -3,6 +3,7 @@ from selenium.common.exceptions import WebDriverException
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException, NoSuchAttributeException
+from selenium.common.exceptions import InvalidArgumentException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,7 +14,7 @@ import os
 import datetime
 from threading import Thread
 from typing import List
-from voicemessages import fileFoundMessage
+from voicemessages import fileFoundMessage, searchMessage
 videoDownloadErrors = Queue(maxsize=1)
 videoDownloadNotification = Queue(maxsize=2)
 
@@ -53,9 +54,13 @@ class VideoDownLoad():
                             pass
 
     def startSRTDownload(self, link):
-        fileFoundMessage()
-        self.driver2 = webdriver.Chrome(options=self.chromeOptions)
-        self.driver2.get(link)
+        try:
+            self.driver2 = webdriver.Chrome(options=self.chromeOptions)
+            self.driver2.get(link)
+        except WebDriverException as error:
+            self.driver2.quit()
+            videoDownloadErrors.put(error)
+            raise error
         try:
             self.headlessDownloadRequirement(self.driver2)
             numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
@@ -68,13 +73,28 @@ class VideoDownLoad():
             fileChecker.join()
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
-            raise
+            self.driver2.quit()
+            raise error
+        except InvalidArgumentException as error:
+            videoDownloadErrors.put(error)
+            self.driver2.quit()
+            raise error
+        except WebDriverException as error:
+            videoDownloadErrors.put(error)
+            self.driver2.quit()
+            raise error
         finally:
             self.driver2.quit()
 
     def startMP4Download(self, link):
-        self.driver1 = webdriver.Chrome(options=self.chromeOptions)
-        self.driver1.get(link)
+        fileFoundMessage()
+        try:
+            self.driver1 = webdriver.Chrome(options=self.chromeOptions)
+            self.driver1.get(link)
+        except WebDriverException as error:
+            self.driver1.quit()
+            videoDownloadErrors.put(error)
+            raise error
         try:
             self.headlessDownloadRequirement(self.driver1)
             numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
@@ -86,6 +106,16 @@ class VideoDownLoad():
             fileChecker.join()
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
+            self.driver1.quit()
+            raise error
+        except InvalidArgumentException as error:
+            videoDownloadErrors.put(error)
+            self.driver1.quit()
+            raise error
+        except WebDriverException as error:
+            videoDownloadErrors.put(error)
+            self.driver1.quit()
+            raise error
         finally:
             self.driver1.quit()
 
@@ -103,6 +133,7 @@ class VideoDownLoad():
             videoDownloadErrors.put('ERROR: Movie name field cannot be empty')
             raise
         else:
+            searchMessage()
             movieName = movie_name
             episode = "episode-" + str(_episode)
             season = "season-" + str(_season)
@@ -113,6 +144,11 @@ class VideoDownLoad():
             try:
                 self.driver = webdriver.Chrome(options=self.chromeOptions)
                 self.driver.get("http://netnaija.com/search")
+            except WebDriverException as error:
+                self.driver.quit()
+                videoDownloadErrors.put(error)
+                raise error
+            try:
                 input1 = self.driver.find_element_by_css_selector("div[class = 'row'] div[class='input'] input")
                 for elem in movieName:
                     input1.send_keys(elem)
@@ -166,23 +202,23 @@ class VideoDownLoad():
             except IndexError as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error)
-                raise
+                raise error
             except ElementClickInterceptedException as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error)
-                raise
+                raise error
             except TimeoutException as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error)
-                raise
+                raise error
             except NoSuchElementException as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error)
-                raise
+                raise error
             except WebDriverException as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error)
-                raise
+                raise error
             finally:
                 self.driver.quit()
                 return self.mp4Link, self.srtLink

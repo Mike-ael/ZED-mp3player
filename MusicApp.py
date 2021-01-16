@@ -26,7 +26,7 @@ from loadMusicProperties import loadProperties
 from mutagen.id3 import ID3
 from PIL import Image
 from io import BytesIO
-from voicemessages import downloadMessage, searchMessage
+from voicemessages import downloadMessage
 from netnaijaScraper import VideoDownLoad
 from netnaijaScraper import ElementClickInterceptedException, TimeoutException
 from netnaijaScraper import NoSuchElementException, WebDriverException
@@ -435,7 +435,6 @@ class MusicPlayerGUI:
     def searchSongInWeb(self):
         searchThread = Thread(target=self.scrapeMusic, args=[])
         searchThread.setDaemon(True)
-        searchMessage()
         searchThread.start()
 
     def scrapeMusic(self):
@@ -451,7 +450,6 @@ class MusicPlayerGUI:
 
     def searchVideoInWeb(self):
         if self.website.get() == 'Netnaija':
-            searchMessage()
             downloadThread = Thread(target=self.scrapeNetnaija, args=())
             downloadThread.setDaemon(True)
             downloadThread.start()
