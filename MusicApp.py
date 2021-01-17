@@ -482,7 +482,13 @@ class MusicPlayerGUI:
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         else:
-            if videoDownloadNotification.qsize() == 2:
+            #in case the srt and mp4 download functions raise an exception...as errors cant be raised in between
+            #threads...the errors will just be put in the queue and emptied in this thread.
+            if videoDownloadErrors.empty() == False:
+                tempError = videoDownloadErrors.get()
+                tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+            #if both downloads are complete and succesful
+            elif videoDownloadNotification.qsize() == 2:
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
             while not videoDownloadNotification.empty():

@@ -15,7 +15,7 @@ import datetime
 from threading import Thread
 from typing import List
 from voicemessages import fileFoundMessage, searchMessage
-videoDownloadErrors = Queue(maxsize=1)
+videoDownloadErrors = Queue(maxsize=2)
 videoDownloadNotification = Queue(maxsize=2)
 
 class VideoDownLoad():
@@ -69,15 +69,12 @@ class VideoDownLoad():
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
             self.driver2.quit()
-            raise error
         except InvalidArgumentException as error:
             videoDownloadErrors.put(error)
             self.driver2.quit()
-            raise error
         except WebDriverException as error:
             videoDownloadErrors.put(error)
             self.driver2.quit()
-            raise error
         else:
             self.driver2.quit()
 
@@ -97,15 +94,12 @@ class VideoDownLoad():
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
             self.driver1.quit()
-            raise error
         except InvalidArgumentException as error:
             videoDownloadErrors.put(error)
             self.driver1.quit()
-            raise error
         except WebDriverException as error:
             videoDownloadErrors.put(error)
             self.driver1.quit()
-            raise error
         else:
             self.driver1.quit()
 
