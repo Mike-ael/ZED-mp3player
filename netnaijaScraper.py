@@ -15,7 +15,7 @@ import datetime
 from threading import Thread
 from typing import List
 from voicemessages import fileFoundMessage, searchMessage
-videoDownloadErrors = Queue(maxsize=2)
+videoDownloadErrors = Queue(maxsize=1)
 videoDownloadNotification = Queue(maxsize=2)
 
 class VideoDownLoad():
@@ -66,14 +66,11 @@ class VideoDownLoad():
             fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.srt'])
             fileChecker.start()
             fileChecker.join()
-        except NoSuchElementException as error:
-            videoDownloadErrors.put(error)
+        except NoSuchElementException:
             self.driver2.quit()
-        except InvalidArgumentException as error:
-            videoDownloadErrors.put(error)
+        except InvalidArgumentException:
             self.driver2.quit()
-        except WebDriverException as error:
-            videoDownloadErrors.put(error)
+        except WebDriverException:
             self.driver2.quit()
         else:
             self.driver2.quit()
