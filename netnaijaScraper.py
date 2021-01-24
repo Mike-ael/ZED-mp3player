@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import TimeoutException
-from selenium.common.exceptions import NoSuchElementException, NoSuchAttributeException
+from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import InvalidArgumentException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -105,7 +105,7 @@ class VideoDownLoad():
             self.driver.quit()
             self.driver1.quit()
             self.driver2.quit()
-        except BaseException:
+        except WebDriverException:
             pass
 
 

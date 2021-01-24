@@ -9,6 +9,7 @@ Description:
 :return:
 '''
 from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
 import tkinter as tk
 import tkinter.messagebox
 import tkinter.simpledialog
@@ -16,7 +17,6 @@ from mutagen.mp3 import MP3, MutagenError
 import pygame
 from tkinter import ttk
 from SearchForSongs import searchForSongs, update, musicFilePathList, musicFilenameList
-from musicSraper import setSongDetailsAndDownoad, downloaded, errorString
 from time import sleep
 from random import randrange
 import re
@@ -27,6 +27,7 @@ from mutagen.id3 import ID3
 from PIL import Image
 from io import BytesIO
 from voicemessages import downloadMessage
+from mp3pawScraper import MusicDownload, musicDownloadErrors, musicDownloadNotification
 from netnaijaScraper import VideoDownLoad
 from netnaijaScraper import ElementClickInterceptedException, TimeoutException
 from netnaijaScraper import NoSuchElementException, WebDriverException
@@ -206,7 +207,7 @@ class MusicPlayerGUI:
         searchImage = tk.PhotoImage(file = 'search.gif')
         webImage = tk.PhotoImage(file='_landscape2.gif')
         videoDownloadImage = tk.PhotoImage(file = 'd1.gif')
-        videoDownloadCancelImage = tk.PhotoImage(file = 'd2.gif')
+        downloadCancelImage = tk.PhotoImage(file = 'd2.gif')
         self.repeat = Repeat()
         self.repeatVar = tk.IntVar()
         # playlist menu
@@ -284,7 +285,9 @@ class MusicPlayerGUI:
         ttk.Entry(self.downloadFrame, textvariable = self.songName, justify = tk.LEFT, width = 50).\
             grid(row = 1, column = 1, pady = 5)
         ttk.Button(self.downloadFrame, image = searchImage, command = self.searchSongInWeb).grid(row = 1, column = 2, padx = 5, pady = 5)
-        downloadCanvas = tk.Canvas(tab4, width = 1050, height = 350, bg = "#000000")
+        ttk.Button(self.downloadFrame, image=downloadCancelImage, command=self.cancelMusicDownload). \
+            grid(row=1, column=3, padx=5, pady=5, sticky=tk.S)
+        downloadCanvas = tk.Canvas(tab4, width = 1050, height = 330, bg = "#000000")
         downloadCanvas.pack()
         downloadCanvas.create_image(530, 175, image=webImage)
 
@@ -301,10 +304,10 @@ class MusicPlayerGUI:
         self.website = tk.StringVar()
 
         ttk.Label(self.videoFrame, text = 'Website:').grid(row=0, column = 0, padx = 5, pady = 5, sticky= tk.W)
-        website_chosen = ttk.Combobox(self.videoFrame, width = 50, textvariable = self.website, state= 'readonly')
-        website_chosen['values'] = ("Netnaija", "TFPDL")
-        website_chosen.grid(row = 0, column = 1)
-        website_chosen.current(1)
+        website_choice = ttk.Combobox(self.videoFrame, width = 50, textvariable = self.website, state= 'readonly')
+        website_choice['values'] = ("Netnaija", "TFPDL")
+        website_choice.grid(row = 0, column = 1)
+        website_choice.current(1)
 
         ttk.Label(self.videoFrame, text='Movie Name:').grid(row=1, column=0, padx=5, pady=5, sticky = tk.W)
         ttk.Entry(self.videoFrame, textvariable=self.movieName, justify=tk.LEFT, width=53). \
@@ -319,7 +322,7 @@ class MusicPlayerGUI:
         episode.grid(row=3, column=1, padx=5, pady=5)
         ttk.Button(self.videoFrame, image=videoDownloadImage, command=self.searchVideoInWeb).\
             grid(row=4, column=0, padx=5, pady=5, sticky = tk.S)
-        ttk.Button(self.videoFrame, image=videoDownloadCancelImage, command=self.cancelDownload). \
+        ttk.Button(self.videoFrame, image=downloadCancelImage, command=self.cancelDownload). \
             grid(row=4, column=1, padx=5, pady=5, sticky = tk.S)
 
         # display playlists tabs if any
@@ -417,6 +420,12 @@ class MusicPlayerGUI:
         self.window.protocol("WM_DELETE_WINDOW", self.close)
 
         self.fillListBox()
+        self.musicDownloadExecutor = ThreadPoolExecutor(max_workers=1)
+        self.musicDownloadList = []
+        self.concurrentMusicDownloadCounter = 0
+        self.videoDownloadExecutor = ThreadPoolExecutor(max_workers=1)
+        self.videoDownloadList = []
+        self.concurrentVideoDownloadCounter = 0
         self.window.mainloop()
 
     #function on another thread called to load the songs from the ROM to a list before the Player starts
@@ -433,28 +442,63 @@ class MusicPlayerGUI:
             self.listBox.insert(tk.END, elem)
 
     def searchSongInWeb(self):
-        searchThread = Thread(target=self.scrapeMusic, args=[])
-        searchThread.setDaemon(True)
-        searchThread.start()
+        self.concurrentMusicDownloadCounter += 1
+        if self.concurrentMusicDownloadCounter == 5:
+            self.musicDownloadExecutor.shutdown()
+        try:
+            self.musicDownloadList.append(self.musicDownloadExecutor.submit(self.scrapeMp3paw))
+        except RuntimeError as error:
+            tkinter.messagebox.showerror('Error Message', f'{error}')
 
-    def scrapeMusic(self):
-        setSongDetailsAndDownoad(self.artistName.get(), self.songName.get())
-        #if download was successful and if no error was logged into the queue
-        if not downloaded.empty():
-            throwAwayVariable = downloaded.get()
-            downloadMessage()
-            tkinter.messagebox.showinfo('Download Message', f'Download Complete')
-            self.updateSongList()
+    def scrapeMp3paw(self):
+        try:
+            self.musicDownload = MusicDownload()
+            self.musicDownload.mp3pawscraper(self.artistName.get(), self.songName.get())
+        except ElementClickInterceptedException:
+            tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
+        except WebDriverException:
+            tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
+        except BaseException:
+            tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         else:
-            tkinter.messagebox.showerror('Error Message', f'{errorString.get()}')
+            if musicDownloadErrors.empty() == False:
+                tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
+            elif not musicDownloadNotification.empty():
+                downloadMessage()
+                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
+                while not musicDownloadNotification.empty():
+                    tempVar = videoDownloadNotification.get()
+                availableTasks = False
+                for task in self.musicDownloadList:
+                    if task.running():
+                        availableTasks = True
+                        break
+                if not availableTasks:
+                    self.musicDownloadList.clear()
+                self.updateSongList()
+
+    def cancelMusicDownload(self):
+        if (self.musicDownloadList[len(self.musicDownloadList) - 1].running()):
+            try:
+                self.download.quitDownload()
+            except AttributeError:
+                pass
+        else:
+            self.musicDownloadList[len(self.musicDownloadList) - 1].cancel()
 
     def searchVideoInWeb(self):
-        if self.website.get() == 'Netnaija':
-            downloadThread = Thread(target=self.scrapeNetnaija, args=())
-            downloadThread.setDaemon(True)
-            downloadThread.start()
-        elif self.website.get() == 'TFPDL':
-            pass
+        self.concurrentVideoDownloadCounter += 1
+        if self.concurrentVideoDownloadCounter == 5:
+            self.videoDownloadExecutor.shutdown()
+        try:
+            if self.website.get() == 'Netnaija':
+                self.videoDownloadList.append(self.videoDownloadExecutor.submit(self.scrapeNetnaija))
+            elif self.website.get() == 'TFPDL':
+                # self.videoDownloadList.append(self.videoDownloadExecutor.submit(self.scrapeTFPDL))
+                pass
+        except RuntimeError as error:
+            tkinter.messagebox.showerror('Error Message', f'{error}')
+
 
     def scrapeNetnaija(self):
         try:
@@ -488,21 +532,29 @@ class MusicPlayerGUI:
                 tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
             #if both downloads are complete and succesful
             elif videoDownloadNotification.qsize() == 2:
+                self.concurrentVideoDownloadCounter -= 1
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
-            while not videoDownloadNotification.empty():
-                tempVar = videoDownloadNotification.get()
+                while not videoDownloadNotification.empty():
+                    tempVar = videoDownloadNotification.get()
+                availableTasks = False
+                for task in self.videoDownloadList:
+                    if task.running():
+                        availableTasks = True
+                        break
+                if not availableTasks:
+                    self.videoDownloadList.clear()
 
 
+    #function to call the function that actually does the cancellation
     def cancelDownload(self):
-        cancelThread = Thread(target=self.cancel, args=[], daemon=True)
-        cancelThread.start()
-
-    def cancel(self):
-        try:
-            self.download.quitDownload()
-        except AttributeError:
-            pass
+        if (self.videoDownloadList[len(self.videoDownloadList) - 1].running()):
+            try:
+                self.download.quitDownload()
+            except AttributeError:
+                pass
+        else:
+            self.videoDownloadList[len(self.videoDownloadList) - 1].cancel()
 
     def updateSongList(self):
         global genreList, artistList, albumList, songYear, songNameList

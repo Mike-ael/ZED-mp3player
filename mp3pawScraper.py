@@ -8,74 +8,93 @@ from threading import Thread
 import os
 import datetime
 from voicemessages import fileFoundMessage
-def checkFilePresence(downloadPath, numberOfFilesInitially, timeNow):
-    found = False
-    while not found:
-        numberOfFilesNow = len(os.listdir(downloadPath))
-        if numberOfFilesNow > numberOfFilesInitially:
-            for folders, subfolders, files in os.walk(downloadPath):
-                for file in files:
-                    try:
-                        creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
-                        if creationTime > timeNow:
-                            if file.endswith('.mp3'):
-                                return
-                    except FileNotFoundError:
-                        pass
-                    except BaseException:
-                        pass
+from queue import Queue
+from voicemessages import searchMessage
+musicDownloadErrors = Queue(maxsize=1)
+musicDownloadNotification = Queue(maxsize=1)
 
-def mp3pawscraper(artistName, songTitle):
-    path = r'C:\Users\HP\Downloads'
-    webUrl = r'https://mp3paw.com/'
-    numberOfFilesInitially = len(os.listdir(path))
-    timeNow = datetime.datetime.now()
-    chrome_options = Options()
-    chrome_options.add_argument('--disable-notifications')
-    chrome_options.add_argument('--headless')
-    driver = webdriver.Chrome(options=chrome_options)
-    try:
-        driver.get(webUrl)
-    except WebDriverException as error:
-        driver.quit()
-        raise error
-    driver.get_cookies()
-    searchElem = driver.find_element_by_id('search')
-    keyword = artistName + " " + songTitle
-    for letter in keyword:
-        searchElem.send_keys(letter)
-        time.sleep(.3)
-    time.sleep(1)
-    searchElem.send_keys(Keys.ENTER)
-    downloadButton = driver.find_elements_by_tag_name('li')
-    downloadElem = None
-    for tag in downloadButton:
-        if tag.text == "Download MP3":
-            downloadElem = tag
-            break
-    time.sleep(2)
-    downloadElem.click()
-    time.sleep(3)
-    windows = driver.window_handles
-    driver.switch_to.window(windows[1])
-    driver.get_cookies()
-    buttons = driver.find_elements_by_css_selector('ul > li')
-    params = {'behavior': 'allow', 'downloadPath': path}
-    driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
-    for i in range(5):
-        try:
-            buttons[7].click()
+class MusicDownload():
+    def __init__(self):
+        self.driver = None
+        self.path = r'C:\Users\HP\Downloads'
+        self.webUrl = r'https://mp3paw.com/'
+        self.chrome_options = Options()
+        self.chrome_options.add_argument('--disable-notifications')
+        #self.chrome_options.add_argument('--headless')
+    def checkFilePresence(self, downloadPath, numberOfFilesInitially, timeNow):
+        found = False
+        while not found:
+            numberOfFilesNow = len(os.listdir(downloadPath))
+            if numberOfFilesNow > numberOfFilesInitially:
+                for folders, subfolders, files in os.walk(downloadPath):
+                    for file in files:
+                        try:
+                            creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
+                            if creationTime > timeNow:
+                                if file.endswith('.mp3'):
+                                    return
+                        except FileNotFoundError:
+                            pass
+                        except BaseException:
+                            pass
+
+    def mp3pawscraper(self, artistName, songTitle):
+        if artistName == '' or songTitle == '':
+            musicDownloadErrors.put("ERROR: fields cannot be empty")
+            raise
+        else:
+            searchMessage()
+            artistName = artistName.lower().strip()
+            songTitle = songTitle.lower().strip()
+            numberOfFilesInitially = len(os.listdir(self.path))
+            timeNow = datetime.datetime.now()
+            driver = webdriver.Chrome(options=self.chrome_options)
+            try:
+                driver.get(self.webUrl)
+            except WebDriverException as error:
+                driver.quit()
+                musicDownloadErrors.put(error)
+                raise error
+            driver.get_cookies()
+            searchElem = driver.find_element_by_id('search')
+            keyword = artistName + " " + songTitle
+            for letter in keyword:
+                searchElem.send_keys(letter)
+                time.sleep(.3)
             time.sleep(1)
-            break
-        except ElementClickInterceptedException as error:
+            searchElem.send_keys(Keys.ENTER)
+            downloadButton = driver.find_elements_by_tag_name('li')
+            downloadElem = None
+            for tag in downloadButton:
+                if tag.text == "Download MP3":
+                    downloadElem = tag
+                    break
+            time.sleep(2)
+            downloadElem.click()
+            time.sleep(3)
+            windows = driver.window_handles
+            driver.switch_to.window(windows[1])
+            driver.get_cookies()
+            buttons = driver.find_elements_by_css_selector('ul > li')
+            params = {'behavior': 'allow', 'downloadPath': self.path}
+            driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
+            for i in range(5):
+                try:
+                    buttons[7].click()
+                    time.sleep(1)
+                    break
+                except ElementClickInterceptedException as error:
+                    driver.quit()
+                    musicDownloadErrors.put(error)
+                    raise error
+                except WebDriverException as error:
+                    driver.quit()
+                    musicDownloadErrors.put(error)
+                    raise error
+            fileFoundMessage()
+            fileChecker = Thread(target=self.checkFilePresence, args=[self.path, numberOfFilesInitially, timeNow])
+            fileChecker.start()
+            fileChecker.join()
+            musicDownloadNotification.put(True)
             driver.quit()
-            raise error
-        except WebDriverException as error:
-            driver.quit()
-            raise error
-    fileFoundMessage()
-    fileChecker = Thread(target=checkFilePresence, args=[path, numberOfFilesInitially, timeNow])
-    fileChecker.start()
-    fileChecker.join()
-    driver.quit()
-    return True
+            return True
