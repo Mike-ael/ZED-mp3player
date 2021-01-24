@@ -28,7 +28,8 @@ from PIL import Image
 from io import BytesIO
 from voicemessages import downloadMessage
 from mp3pawScraper import MusicDownload, musicDownloadErrors, musicDownloadNotification
-from netnaijaScraper import VideoDownLoad
+from mp3pawScraper import musicDownloadCancelledFlag
+from netnaijaScraper import VideoDownLoad, videoDownloadCancelledFlag
 from netnaijaScraper import ElementClickInterceptedException, TimeoutException
 from netnaijaScraper import NoSuchElementException, WebDriverException
 from netnaijaScraper import videoDownloadErrors, videoDownloadNotification
@@ -442,10 +443,11 @@ class MusicPlayerGUI:
             self.listBox.insert(tk.END, elem)
 
     def searchSongInWeb(self):
-        self.concurrentMusicDownloadCounter += 1
-        if self.concurrentMusicDownloadCounter == 5:
-            self.musicDownloadExecutor.shutdown()
         try:
+            self.concurrentMusicDownloadCounter += 1
+            if self.concurrentMusicDownloadCounter == 3:
+                self.concurrentMusicDownloadCounter -= 1
+                raise RuntimeError("ERROR: you cannot have more than  download(s) queued ")
             self.musicDownloadList.append(self.musicDownloadExecutor.submit(self.scrapeMp3paw))
         except RuntimeError as error:
             tkinter.messagebox.showerror('Error Message', f'{error}')
@@ -467,7 +469,9 @@ class MusicPlayerGUI:
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                 while not musicDownloadNotification.empty():
-                    tempVar = videoDownloadNotification.get()
+                    tempVar = musicDownloadNotification.get()
+                #delete completed task from list
+                del self.musicDownloadList[0]
                 availableTasks = False
                 for task in self.musicDownloadList:
                     if task.running():
@@ -478,19 +482,26 @@ class MusicPlayerGUI:
                 self.updateSongList()
 
     def cancelMusicDownload(self):
-        if (self.musicDownloadList[len(self.musicDownloadList) - 1].running()):
-            try:
-                self.download.quitDownload()
-            except AttributeError:
-                pass
-        else:
-            self.musicDownloadList[len(self.musicDownloadList) - 1].cancel()
+        try:
+            if (self.musicDownloadList[len(self.musicDownloadList) - 1].running()):
+                print("task is running")
+                musicDownloadCancelledFlag.put(True)
+                self.concurrentMusicDownloadCounter -= 1
+                del self.musicDownloadList[0]
+            else:
+                print('task is not running')
+                self.musicDownloadList[len(self.musicDownloadList) - 1].cancel()
+                self.musicDownloadList.pop()
+                self.concurrentMusicDownloadCounter -= 1
+        except IndexError:
+            tkinter.messagebox.showerror('Error Message', 'ERROR: No downloads either queued or ongoing')
 
     def searchVideoInWeb(self):
-        self.concurrentVideoDownloadCounter += 1
-        if self.concurrentVideoDownloadCounter == 5:
-            self.videoDownloadExecutor.shutdown()
         try:
+            self.concurrentVideoDownloadCounter += 1
+            if self.concurrentVideoDownloadCounter == 3:
+                self.concurrentVideoDownloadCounter -= 1
+                raise RuntimeError("ERROR: you cannot have more than  download(s) queued ")
             if self.website.get() == 'Netnaija':
                 self.videoDownloadList.append(self.videoDownloadExecutor.submit(self.scrapeNetnaija))
             elif self.website.get() == 'TFPDL':
@@ -502,11 +513,11 @@ class MusicPlayerGUI:
 
     def scrapeNetnaija(self):
         try:
-            self.download = VideoDownLoad()
-            mp4Link, srtLink = self.download.findFileLink(self.movieName.get(), self.season.get(), self.episode.get())
+            self.videoDownload = VideoDownLoad()
+            mp4Link, srtLink = self.videoDownload.findFileLink(self.movieName.get(), self.season.get(), self.episode.get())
             downloadThreads = []
-            downloadThreads.append(Thread(target=self.download.startSRTDownload, args=[srtLink]))
-            downloadThreads.append(Thread(target=self.download.startMP4Download, args=[mp4Link]))
+            downloadThreads.append(Thread(target=self.videoDownload.startSRTDownload, args=[srtLink]))
+            downloadThreads.append(Thread(target=self.videoDownload.startMP4Download, args=[mp4Link]))
             for thread in downloadThreads:
                 thread.start()
             for thread in downloadThreads:
@@ -537,6 +548,8 @@ class MusicPlayerGUI:
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                 while not videoDownloadNotification.empty():
                     tempVar = videoDownloadNotification.get()
+                # delete completed task from list
+                del self.videoDownloadList[0]
                 availableTasks = False
                 for task in self.videoDownloadList:
                     if task.running():
@@ -548,13 +561,17 @@ class MusicPlayerGUI:
 
     #function to call the function that actually does the cancellation
     def cancelDownload(self):
-        if (self.videoDownloadList[len(self.videoDownloadList) - 1].running()):
-            try:
-                self.download.quitDownload()
-            except AttributeError:
-                pass
-        else:
-            self.videoDownloadList[len(self.videoDownloadList) - 1].cancel()
+        try:
+            if (self.videoDownloadList[len(self.videoDownloadList) - 1].running()):
+                videoDownloadCancelledFlag.put(True)
+                self.concurrentVideoDownloadCounter -= 1
+                del self.videoDownloadList[0]
+            else:
+                self.videoDownloadList[len(self.videoDownloadList) - 1].cancel()
+                self.videoDownloadList.pop()
+                self.concurrentVideoDownloadCounter -= 1
+        except IndexError:
+            tkinter.messagebox.showerror('Error Message', 'ERROR: No downloads either queued or ongoing')
 
     def updateSongList(self):
         global genreList, artistList, albumList, songYear, songNameList

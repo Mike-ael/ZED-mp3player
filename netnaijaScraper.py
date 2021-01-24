@@ -15,8 +15,10 @@ import datetime
 from threading import Thread
 from typing import List
 from voicemessages import fileFoundMessage, searchMessage
+videoDownloadCancelledFlag = Queue(maxsize=1)
 videoDownloadErrors = Queue(maxsize=1)
 videoDownloadNotification = Queue(maxsize=2)
+
 
 class VideoDownLoad():
     def __init__(self):
@@ -29,6 +31,7 @@ class VideoDownLoad():
         self.mp4Link = None
         self.srtLink = None
         self.downloadPath = r'C:\Users\HP\Downloads'
+        self.fileDownloaded = False
 
     def headlessDownloadRequirement(self, driver):
         params = {'behavior': 'allow', 'downloadPath': self.downloadPath}
@@ -52,6 +55,22 @@ class VideoDownLoad():
                             pass
                         except BaseException:
                             pass
+
+    def quitDownload(self):
+        try:
+            self.driver.quit()
+            self.driver1.quit()
+            self.driver2.quit()
+        except WebDriverException:
+            pass
+        else:
+            videoDownloadErrors.put("Download cancelled")
+
+    def checkCancelled(self):
+        while not videoDownloadCancelledFlag.qsize() == 1:
+            pass
+        _tempVar = videoDownloadCancelledFlag.get()
+        self.quitDownload()
 
     def startSRTDownload(self, link):
         try:
@@ -100,14 +119,6 @@ class VideoDownLoad():
         else:
             self.driver1.quit()
 
-    def quitDownload(self):
-        try:
-            self.driver.quit()
-            self.driver1.quit()
-            self.driver2.quit()
-        except WebDriverException:
-            pass
-
 
     def search(self, string, link):
         return string in link
@@ -117,6 +128,8 @@ class VideoDownLoad():
             videoDownloadErrors.put('ERROR: Movie name field cannot be empty')
             raise
         else:
+            downloadCanceledCheck = Thread(target=self.checkCancelled, args=[], daemon=True)
+            downloadCanceledCheck.start()
             searchMessage()
             movieName = movie_name
             episode = "episode-" + str(_episode)
