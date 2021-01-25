@@ -24,7 +24,7 @@ class VideoDownLoad():
     def __init__(self):
         self.chromeOptions = Options()
         self.chromeOptions.add_argument('--disable-notifications')
-        #self.chromeOptions.add_argument('--headless')
+        self.chromeOptions.add_argument('--headless')
         self.driver = None
         self.driver1 = None
         self.driver2 = None
@@ -85,9 +85,9 @@ class VideoDownLoad():
             timeNow = datetime.datetime.now()
             downloadButton = self.driver2.find_element_by_css_selector(
             """div[id = 'app-content'] div[id = 'file-page'] div[id = 'action-buttons'] button""")
-            downloadButton.click()
             fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.srt'])
             fileChecker.start()
+            downloadButton.click()
             fileChecker.join()
         except NoSuchElementException:
             self.driver2.quit()
