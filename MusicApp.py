@@ -447,7 +447,7 @@ class MusicPlayerGUI:
             self.concurrentMusicDownloadCounter += 1
             if self.concurrentMusicDownloadCounter == 3:
                 self.concurrentMusicDownloadCounter -= 1
-                raise RuntimeError("ERROR: you cannot have more than  download(s) queued ")
+                raise RuntimeError("ERROR: you cannot have more than 1 download(s) queued ")
             self.musicDownloadList.append(self.musicDownloadExecutor.submit(self.scrapeMp3paw))
         except RuntimeError as error:
             tkinter.messagebox.showerror('Error Message', f'{error}')
@@ -465,6 +465,8 @@ class MusicPlayerGUI:
         else:
             if musicDownloadErrors.empty() == False:
                 tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
+                while not musicDownloadErrors.empty():
+                    _ = musicDownloadErrors.get()
             elif not musicDownloadNotification.empty():
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
@@ -480,6 +482,8 @@ class MusicPlayerGUI:
                 if not availableTasks:
                     self.musicDownloadList.clear()
                 self.updateSongList()
+        finally:
+            self.concurrentMusicDownloadCounter -= 1
 
     def cancelMusicDownload(self):
         try:
@@ -501,7 +505,7 @@ class MusicPlayerGUI:
             self.concurrentVideoDownloadCounter += 1
             if self.concurrentVideoDownloadCounter == 3:
                 self.concurrentVideoDownloadCounter -= 1
-                raise RuntimeError("ERROR: you cannot have more than  download(s) queued ")
+                raise RuntimeError("ERROR: you cannot have more than 1 download(s) queued ")
             if self.website.get() == 'Netnaija':
                 self.videoDownloadList.append(self.videoDownloadExecutor.submit(self.scrapeNetnaija))
             elif self.website.get() == 'TFPDL':
@@ -541,9 +545,10 @@ class MusicPlayerGUI:
             #threads...the errors will just be put in the queue and emptied in this thread.
             if videoDownloadErrors.empty() == False:
                 tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
-            #if both downloads are complete and succesful
+                while not videoDownloadErrors.empty():
+                    _ = videoDownloadErrors.get()
+            #if both downloads are complete and successful
             elif videoDownloadNotification.qsize() == 2:
-                self.concurrentVideoDownloadCounter -= 1
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                 while not videoDownloadNotification.empty():
@@ -557,16 +562,20 @@ class MusicPlayerGUI:
                         break
                 if not availableTasks:
                     self.videoDownloadList.clear()
+        finally:
+            self.concurrentVideoDownloadCounter -= 1
 
 
     #function to call the function that actually does the cancellation
     def cancelDownload(self):
         try:
             if (self.videoDownloadList[len(self.videoDownloadList) - 1].running()):
+                print("task is running")
                 videoDownloadCancelledFlag.put(True)
                 self.concurrentVideoDownloadCounter -= 1
                 del self.videoDownloadList[0]
             else:
+                print('task is not running')
                 self.videoDownloadList[len(self.videoDownloadList) - 1].cancel()
                 self.videoDownloadList.pop()
                 self.concurrentVideoDownloadCounter -= 1

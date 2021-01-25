@@ -16,7 +16,7 @@ from threading import Thread
 from typing import List
 from voicemessages import fileFoundMessage, searchMessage
 videoDownloadCancelledFlag = Queue(maxsize=1)
-videoDownloadErrors = Queue(maxsize=1)
+videoDownloadErrors = Queue(maxsize=2)
 videoDownloadNotification = Queue(maxsize=2)
 
 
@@ -24,7 +24,7 @@ class VideoDownLoad():
     def __init__(self):
         self.chromeOptions = Options()
         self.chromeOptions.add_argument('--disable-notifications')
-        self.chromeOptions.add_argument('--headless')
+        #self.chromeOptions.add_argument('--headless')
         self.driver = None
         self.driver1 = None
         self.driver2 = None
@@ -63,14 +63,18 @@ class VideoDownLoad():
             self.driver2.quit()
         except WebDriverException:
             pass
-        else:
+        except AttributeError:
+            pass
+        finally:
             videoDownloadErrors.put("Download cancelled")
 
     def checkCancelled(self):
-        while not videoDownloadCancelledFlag.qsize() == 1:
+        while not videoDownloadCancelledFlag.qsize() == 1 and not self.fileDownloaded:
             pass
-        _tempVar = videoDownloadCancelledFlag.get()
-        self.quitDownload()
+        if not self.fileDownloaded:
+            _tempVar = videoDownloadCancelledFlag.get()
+            self.quitDownload()
+
 
     def startSRTDownload(self, link):
         try:
@@ -92,6 +96,7 @@ class VideoDownLoad():
         except WebDriverException:
             self.driver2.quit()
         else:
+            self.fileDownloaded = True
             self.driver2.quit()
 
     def startMP4Download(self, link):
@@ -128,7 +133,7 @@ class VideoDownLoad():
             videoDownloadErrors.put('ERROR: Movie name field cannot be empty')
             raise
         else:
-            downloadCanceledCheck = Thread(target=self.checkCancelled, args=[], daemon=True)
+            downloadCanceledCheck = Thread(target=self.checkCancelled, args=(), daemon=True)
             downloadCanceledCheck.start()
             searchMessage()
             movieName = movie_name
@@ -141,6 +146,7 @@ class VideoDownLoad():
             try:
                 self.driver = webdriver.Chrome(options=self.chromeOptions)
                 self.driver.get("http://netnaija.com/search")
+                self.driver.get_cookies()
                 input1 = self.driver.find_element_by_css_selector("div[class = 'row'] div[class='input'] input")
                 for elem in movieName:
                     input1.send_keys(elem)
@@ -192,6 +198,9 @@ class VideoDownLoad():
                 if self.found == False:
                     raise FileNotFoundError()
                 else:
+                    self.driver.get_cookies()
+                    if self.driver.current_window_handle != self.driver.window_handles[0]:
+                        self.driver.switch_to.window(self.driver.window_handles[0])
                     downloadLinks = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''article[class = 'video-file'] div[class ='video-plain'] 
                                                                                                     div[class = 'video-download'] p a''')))
                     print(len(downloadLinks))

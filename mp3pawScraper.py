@@ -11,7 +11,7 @@ from voicemessages import fileFoundMessage
 from queue import Queue
 from voicemessages import searchMessage
 musicDownloadCancelledFlag = Queue(maxsize=1)
-musicDownloadErrors = Queue(maxsize=1)
+musicDownloadErrors = Queue(maxsize=2)
 musicDownloadNotification = Queue(maxsize=1)
 #this is a flag for the download checking thread
 
@@ -47,14 +47,17 @@ class MusicDownload():
             self.driver.quit()
         except WebDriverException:
             pass
+        except AttributeError:
+            pass
         else:
             musicDownloadErrors.put("Download cancelled")
 
     def checkCancelled(self):
-        while not musicDownloadCancelledFlag.qsize() == 1:
+        while not musicDownloadCancelledFlag.qsize() == 1 and not self.fileDownloaded:
             pass
-        _tempVar = musicDownloadCancelledFlag.get()
-        self.quitDownload()
+        if not self.fileDownloaded:
+            _tempVar = musicDownloadCancelledFlag.get()
+            self.quitDownload()
 
     def mp3pawscraper(self, artistName, songTitle):
         if artistName == '' or songTitle == '':
