@@ -49,7 +49,7 @@ class VideoDownLoad():
                             creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
                             if creationTime > timeNow:
                                 if file.endswith(extension):
-                                    videoDownloadNotification.put(True)
+                                    videoDownloadNotification.put(True, block=False)
                                     return
                         except FileNotFoundError:
                             pass
@@ -202,16 +202,12 @@ class VideoDownLoad():
                     if self.search(episode, str(l)) and self.search(season, str(l)):
                         print(f'found link -> {l}')
                         self.found = True
-                        link.click()
+                        self.driver.get(l)
                         break
                 if self.found == False:
                     raise FileNotFoundError()
                 else:
-                    self.driver.get_cookies()
-                    if self.driver.current_window_handle != self.driver.window_handles[0]:
-                        self.driver.switch_to.window(self.driver.window_handles[0])
-                    downloadLinks = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''article[class = 'video-file'] div[class ='video-plain'] 
-                                                                                                    div[class = 'video-download'] p a''')))
+                    downloadLinks = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[class = 'video-download'] p a" )))
                     print(len(downloadLinks))
                     self.mp4Link = downloadLinks[3].get_attribute('href')
                     self.srtLink = downloadLinks[4].get_attribute('href')

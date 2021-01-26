@@ -456,6 +456,12 @@ class MusicPlayerGUI:
         try:
             self.musicDownload = MusicDownload()
             self.musicDownload.mp3pawscraper(self.artistNameQueue.get(), self.songNameQueue.get())
+            if not musicDownloadNotification.empty():
+                downloadMessage()
+                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
+                while not musicDownloadNotification.empty():
+                    tempVar = musicDownloadNotification.get(block=False)
+                self.updateSongList()
         except ElementClickInterceptedException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         except WebDriverException:
@@ -467,16 +473,6 @@ class MusicPlayerGUI:
                     _ = musicDownloadErrors.get(block=False)
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
-        else:
-            try:
-                if not musicDownloadNotification.empty():
-                    downloadMessage()
-                    tkinter.messagebox.showinfo('Download Message', f'Download Complete')
-                    while not musicDownloadNotification.empty():
-                        tempVar = musicDownloadNotification.get(block=False)
-                    self.updateSongList()
-            except Empty:
-                tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
         finally:
             # delete task from queue
             self.musicDownloadList.get(block=False)
@@ -512,6 +508,12 @@ class MusicPlayerGUI:
                 downloadExecutorList.append(downloadExecutor.submit(self.videoDownload.startSRTDownload, (srtLink)))
             for downloadResults in as_completed(downloadExecutorList):
                 downloadResults.result()
+            # if both downloads are complete and successful
+            if videoDownloadNotification.empty() == False:
+                downloadMessage()
+                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
+                while not videoDownloadNotification.empty():
+                    tempVar = videoDownloadNotification.get(block=False)
         except IndexError:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except FileNotFoundError:
@@ -533,16 +535,6 @@ class MusicPlayerGUI:
                     _ = videoDownloadErrors.get(block=False)
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
-        else:
-            try:
-                #if both downloads are complete and successful
-                if videoDownloadNotification.qsize() == 2:
-                    downloadMessage()
-                    tkinter.messagebox.showinfo('Download Message', f'Download Complete')
-                    while not videoDownloadNotification.empty():
-                        tempVar = videoDownloadNotification.get(block=False)
-            except Empty:
-                tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
         finally:
             # delete task from queue
             self.videoDownloadList.get(block=False)

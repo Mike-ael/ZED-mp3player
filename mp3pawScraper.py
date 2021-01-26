@@ -5,7 +5,6 @@ from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 from threading import Thread
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import datetime
 from voicemessages import fileFoundMessage
@@ -66,7 +65,6 @@ class MusicDownload():
             raise
         else:
             try:
-                fileCheckerExecutor = ThreadPoolExecutor(max_workers=1)
                 downloadCanceledCheck = Thread(target=self.checkCancelled, args=[], daemon=True)
                 downloadCanceledCheck.start()
                 searchMessage()
@@ -97,6 +95,8 @@ class MusicDownload():
                 self.driver.switch_to.window(windows[1])
                 self.driver.get_cookies()
                 buttons = self.driver.find_elements_by_css_selector('ul > li')
+                fileChecker = Thread(target=self.checkFilePresence, args=(self.path, numberOfFilesInitially, timeNow))
+                fileChecker.start()
                 params = {'behavior': 'allow', 'downloadPath': self.path}
                 self.driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
                 for i in range(5):
@@ -104,9 +104,7 @@ class MusicDownload():
                     time.sleep(1)
                     break
                 fileFoundMessage()
-                future = fileCheckerExecutor.submit(self.checkFilePresence, (self.path, numberOfFilesInitially, timeNow))
-                for result in as_completed([future]):
-                    result.result()
+                fileChecker.join()
                 musicDownloadNotification.put(True, block=False)
                 self.fileDownloaded = True
                 self.driver.quit()
