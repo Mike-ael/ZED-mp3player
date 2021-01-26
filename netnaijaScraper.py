@@ -89,12 +89,18 @@ class VideoDownLoad():
             fileChecker.start()
             downloadButton.click()
             fileChecker.join()
-        except NoSuchElementException:
+        except NoSuchElementException as error:
+            videoDownloadErrors.put(error)
             self.driver2.quit()
-        except InvalidArgumentException:
+            raise error
+        except InvalidArgumentException as error:
+            videoDownloadErrors.put(error)
             self.driver2.quit()
-        except WebDriverException:
+            raise error
+        except WebDriverException as error:
+            videoDownloadErrors.put(error)
             self.driver2.quit()
+            raise error
         else:
             self.fileDownloaded = True
             self.driver2.quit()
@@ -115,12 +121,15 @@ class VideoDownLoad():
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
             self.driver1.quit()
+            raise error
         except InvalidArgumentException as error:
             videoDownloadErrors.put(error)
             self.driver1.quit()
+            raise error
         except WebDriverException as error:
             videoDownloadErrors.put(error)
             self.driver1.quit()
+            raise error
         else:
             self.driver1.quit()
 

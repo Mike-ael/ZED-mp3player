@@ -9,7 +9,7 @@ Description:
 :return:
 '''
 from threading import Thread
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import tkinter as tk
 import tkinter.messagebox
 import tkinter.simpledialog
@@ -21,7 +21,7 @@ from time import sleep
 from random import randrange
 import re
 import os
-from queue import Queue, Empty
+from queue import Queue, Empty, Full
 from loadMusicProperties import loadProperties
 from mutagen.id3 import ID3
 from PIL import Image
@@ -31,7 +31,7 @@ from mp3pawScraper import MusicDownload, musicDownloadErrors, musicDownloadNotif
 from mp3pawScraper import musicDownloadCancelledFlag
 from netnaijaScraper import VideoDownLoad, videoDownloadCancelledFlag
 from netnaijaScraper import ElementClickInterceptedException, TimeoutException
-from netnaijaScraper import NoSuchElementException, WebDriverException
+from netnaijaScraper import NoSuchElementException, WebDriverException, InvalidArgumentException
 from netnaijaScraper import videoDownloadErrors, videoDownloadNotification
 from loadMusicProperties import genreList, artistList, albumList, songYear, songNameList
 pygame.mixer.pre_init(44100, 16, 2, 1024 * 4)
@@ -421,12 +421,14 @@ class MusicPlayerGUI:
         self.window.protocol("WM_DELETE_WINDOW", self.close)
 
         self.fillListBox()
+        self.seasonQueue = Queue(maxsize=2)
+        self.episodeQueue = Queue(maxsize=2)
+        self.movieNameQueue = Queue(maxsize=2)
+        self.artistNameQueue = self.songNameQueue = Queue(maxsize=2)
         self.musicDownloadExecutor = ThreadPoolExecutor(max_workers=1)
-        self.musicDownloadList = []
-        self.concurrentMusicDownloadCounter = 0
+        self.musicDownloadList = Queue(maxsize=2)
         self.videoDownloadExecutor = ThreadPoolExecutor(max_workers=1)
-        self.videoDownloadList = []
-        self.concurrentVideoDownloadCounter = 0
+        self.videoDownloadList = Queue(maxsize=2)
         self.window.mainloop()
 
     #function on another thread called to load the songs from the ROM to a list before the Player starts
@@ -444,18 +446,16 @@ class MusicPlayerGUI:
 
     def searchSongInWeb(self):
         try:
-            self.concurrentMusicDownloadCounter += 1
-            if self.concurrentMusicDownloadCounter == 3:
-                self.concurrentMusicDownloadCounter -= 1
-                raise RuntimeError("ERROR: you cannot have more than 1 download(s) queued ")
-            self.musicDownloadList.append(self.musicDownloadExecutor.submit(self.scrapeMp3paw))
-        except RuntimeError as error:
-            tkinter.messagebox.showerror('Error Message', f'{error}')
+            self.songNameQueue.put(self.songName.get(), block=False)
+            self.artistNameQueue.put(self.artistName.get(), block=False)
+            self.musicDownloadList.put(self.musicDownloadExecutor.submit(self.scrapeMp3paw), block=False)
+        except Full:
+            tkinter.messagebox.showerror('Error Message', 'ERROR: Cant have more than one download(s) queued')
 
     def scrapeMp3paw(self):
         try:
             self.musicDownload = MusicDownload()
-            self.musicDownload.mp3pawscraper(self.artistName.get(), self.songName.get())
+            self.musicDownload.mp3pawscraper(self.artistNameQueue.get(), self.songNameQueue.get())
         except ElementClickInterceptedException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         except WebDriverException:
@@ -463,74 +463,61 @@ class MusicPlayerGUI:
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         else:
-            if musicDownloadErrors.empty() == False:
-                tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
-                while not musicDownloadErrors.empty():
-                    _ = musicDownloadErrors.get()
-            elif not musicDownloadNotification.empty():
-                downloadMessage()
-                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
-                while not musicDownloadNotification.empty():
-                    tempVar = musicDownloadNotification.get()
-                #delete completed task from list
-                del self.musicDownloadList[0]
-                availableTasks = False
-                for task in self.musicDownloadList:
-                    if task.running():
-                        availableTasks = True
-                        break
-                if not availableTasks:
-                    self.musicDownloadList.clear()
-                self.updateSongList()
-        finally:
-            self.concurrentMusicDownloadCounter -= 1
+            try:
+                if musicDownloadErrors.empty() == False:
+                    currentRunningTask = self.musicDownloadList.get(block=False)
+                    tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
+                    while not musicDownloadErrors.empty():
+                        _ = musicDownloadErrors.get(block=False)
+                elif not musicDownloadNotification.empty():
+                    downloadMessage()
+                    tkinter.messagebox.showinfo('Download Message', f'Download Complete')
+                    while not musicDownloadNotification.empty():
+                        tempVar = musicDownloadNotification.get(block=False)
+                    #delete completed task from queue
+                    self.musicDownloadList.get(block=False)
+                    self.updateSongList()
+            except Empty:
+                tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
 
     def cancelMusicDownload(self):
         try:
-            if (self.musicDownloadList[len(self.musicDownloadList) - 1].running()):
-                print("task is running")
-                musicDownloadCancelledFlag.put(True)
-                self.concurrentMusicDownloadCounter -= 1
-                del self.musicDownloadList[0]
-            else:
-                print('task is not running')
-                self.musicDownloadList[len(self.musicDownloadList) - 1].cancel()
-                self.musicDownloadList.pop()
-                self.concurrentMusicDownloadCounter -= 1
-        except IndexError:
-            tkinter.messagebox.showerror('Error Message', 'ERROR: No downloads either queued or ongoing')
+            if self.musicDownloadList.qsize() != 0:
+                musicDownloadCancelledFlag.put(True, block=False)
+        except Full:
+            tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
 
     def searchVideoInWeb(self):
         try:
-            self.concurrentVideoDownloadCounter += 1
-            if self.concurrentVideoDownloadCounter == 3:
-                self.concurrentVideoDownloadCounter -= 1
-                raise RuntimeError("ERROR: you cannot have more than 1 download(s) queued ")
+            self.movieNameQueue.put(self.movieName.get(), block=False)
+            self.seasonQueue.put(self.season.get(), block=False)
+            self.episodeQueue.put(self.episode.get(), block=False)
             if self.website.get() == 'Netnaija':
-                self.videoDownloadList.append(self.videoDownloadExecutor.submit(self.scrapeNetnaija))
+                self.videoDownloadList.put(self.videoDownloadExecutor.submit(self.scrapeNetnaija), block = False)
             elif self.website.get() == 'TFPDL':
-                # self.videoDownloadList.append(self.videoDownloadExecutor.submit(self.scrapeTFPDL))
+                # self.videoDownloadList.append(self.videoDownloadExecutor.submit(self.scrapeTFPDL), block = False)
                 pass
-        except RuntimeError as error:
-            tkinter.messagebox.showerror('Error Message', f'{error}')
+        except Full:
+            tkinter.messagebox.showerror('Error Message', 'ERROR: Cant have more than one download(s) queued')
 
 
     def scrapeNetnaija(self):
         try:
             self.videoDownload = VideoDownLoad()
-            mp4Link, srtLink = self.videoDownload.findFileLink(self.movieName.get(), self.season.get(), self.episode.get())
-            downloadThreads = []
-            downloadThreads.append(Thread(target=self.videoDownload.startSRTDownload, args=[srtLink]))
-            downloadThreads.append(Thread(target=self.videoDownload.startMP4Download, args=[mp4Link]))
-            for thread in downloadThreads:
-                thread.start()
-            for thread in downloadThreads:
-                thread.join()
+            mp4Link, srtLink = self.videoDownload.findFileLink(self.movieNameQueue.get(), self.seasonQueue.get(), self.episodeQueue.get())
+            downloadExecutorList = []
+            with ThreadPoolExecutor(max_workers=2) as downloadExecutor:
+                downloadExecutorList.append(downloadExecutor.submit(self.videoDownload.startMP4Download, (mp4Link)))
+                downloadExecutorList.append(downloadExecutor.submit(self.videoDownload.startSRTDownload, (srtLink)))
+            for downloadResults in as_completed(downloadExecutorList):
+                downloadResults.result()
         except IndexError:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except FileNotFoundError:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except ElementClickInterceptedException:
+            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+        except InvalidArgumentException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except TimeoutException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
@@ -541,46 +528,29 @@ class MusicPlayerGUI:
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         else:
-            #in case the srt and mp4 download functions raise an exception...as errors cant be raised in between
-            #threads...the errors will just be put in the queue and emptied in this thread.
-            if videoDownloadErrors.empty() == False:
-                tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
-                while not videoDownloadErrors.empty():
-                    _ = videoDownloadErrors.get()
-            #if both downloads are complete and successful
-            elif videoDownloadNotification.qsize() == 2:
-                downloadMessage()
-                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
-                while not videoDownloadNotification.empty():
-                    tempVar = videoDownloadNotification.get()
-                # delete completed task from list
-                del self.videoDownloadList[0]
-                availableTasks = False
-                for task in self.videoDownloadList:
-                    if task.running():
-                        availableTasks = True
-                        break
-                if not availableTasks:
-                    self.videoDownloadList.clear()
-        finally:
-            self.concurrentVideoDownloadCounter -= 1
+            try:
+                if videoDownloadErrors.empty() == False:
+                    currentRunningTask = self.videoDownloadList.get(block=False)
+                    tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+                    while not videoDownloadErrors.empty():
+                        _ = videoDownloadErrors.get(block=False)
+                #if both downloads are complete and successful
+                elif videoDownloadNotification.qsize() == 2:
+                    downloadMessage()
+                    tkinter.messagebox.showinfo('Download Message', f'Download Complete')
+                    while not videoDownloadNotification.empty():
+                        tempVar = videoDownloadNotification.get(block=False)
+                    #delete cancelled task from queue
+                    self.videoDownloadList.get(block=False)
+            except Empty:
+                tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
 
-
-    #function to call the function that actually does the cancellation
     def cancelDownload(self):
         try:
-            if (self.videoDownloadList[len(self.videoDownloadList) - 1].running()):
-                print("task is running")
-                videoDownloadCancelledFlag.put(True)
-                self.concurrentVideoDownloadCounter -= 1
-                del self.videoDownloadList[0]
-            else:
-                print('task is not running')
-                self.videoDownloadList[len(self.videoDownloadList) - 1].cancel()
-                self.videoDownloadList.pop()
-                self.concurrentVideoDownloadCounter -= 1
-        except IndexError:
-            tkinter.messagebox.showerror('Error Message', 'ERROR: No downloads either queued or ongoing')
+            if self.videoDownloadList.qsize() != 0:
+                videoDownloadCancelledFlag.put(True, block=False)
+        except Full:
+            tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
 
     def updateSongList(self):
         global genreList, artistList, albumList, songYear, songNameList
