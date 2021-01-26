@@ -459,26 +459,27 @@ class MusicPlayerGUI:
         except ElementClickInterceptedException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         except WebDriverException:
-            tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
+            if musicDownloadErrors.qsize() == 1:
+                tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
+            elif musicDownloadErrors.qsize() == 2:
+                tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
+                while not musicDownloadErrors.empty():
+                    _ = musicDownloadErrors.get(block=False)
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         else:
             try:
-                if musicDownloadErrors.empty() == False:
-                    currentRunningTask = self.musicDownloadList.get(block=False)
-                    tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
-                    while not musicDownloadErrors.empty():
-                        _ = musicDownloadErrors.get(block=False)
-                elif not musicDownloadNotification.empty():
+                if not musicDownloadNotification.empty():
                     downloadMessage()
                     tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                     while not musicDownloadNotification.empty():
                         tempVar = musicDownloadNotification.get(block=False)
-                    #delete completed task from queue
-                    self.musicDownloadList.get(block=False)
                     self.updateSongList()
             except Empty:
                 tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
+        finally:
+            # delete task from queue
+            self.musicDownloadList.get(block=False)
 
     def cancelMusicDownload(self):
         try:
@@ -524,26 +525,27 @@ class MusicPlayerGUI:
         except NoSuchElementException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except WebDriverException:
-            tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+            if videoDownloadErrors.qsize() == 1:
+                tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+            elif videoDownloadErrors.qsize() == 2:
+                tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
+                while not videoDownloadErrors.empty():
+                    _ = videoDownloadErrors.get(block=False)
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         else:
             try:
-                if videoDownloadErrors.empty() == False:
-                    currentRunningTask = self.videoDownloadList.get(block=False)
-                    tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
-                    while not videoDownloadErrors.empty():
-                        _ = videoDownloadErrors.get(block=False)
                 #if both downloads are complete and successful
-                elif videoDownloadNotification.qsize() == 2:
+                if videoDownloadNotification.qsize() == 2:
                     downloadMessage()
                     tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                     while not videoDownloadNotification.empty():
                         tempVar = videoDownloadNotification.get(block=False)
-                    #delete cancelled task from queue
-                    self.videoDownloadList.get(block=False)
             except Empty:
                 tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
+        finally:
+            # delete task from queue
+            self.videoDownloadList.get(block=False)
 
     def cancelDownload(self):
         try:

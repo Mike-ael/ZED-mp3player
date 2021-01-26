@@ -24,7 +24,7 @@ class MusicDownload():
         self.webUrl = r'https://mp3paw.com/'
         self.chrome_options = Options()
         self.chrome_options.add_argument('--disable-notifications')
-        #self.chrome_options.add_argument('--headless')
+        self.chrome_options.add_argument('--headless')
         self.fileDownloaded = False
     def checkFilePresence(self, downloadPath, numberOfFilesInitially, timeNow):
         found = False
@@ -107,14 +107,14 @@ class MusicDownload():
                 future = fileCheckerExecutor.submit(self.checkFilePresence, (self.path, numberOfFilesInitially, timeNow))
                 for result in as_completed([future]):
                     result.result()
-                musicDownloadNotification.put(True)
+                musicDownloadNotification.put(True, block=False)
                 self.fileDownloaded = True
                 self.driver.quit()
             except ElementClickInterceptedException as error:
                 self.driver.quit()
-                musicDownloadErrors.put(error)
+                musicDownloadErrors.put(error, block=False)
                 raise error
             except WebDriverException as error:
                 self.driver.quit()
-                musicDownloadErrors.put(error)
+                musicDownloadErrors.put(error, block=False)
                 raise error
