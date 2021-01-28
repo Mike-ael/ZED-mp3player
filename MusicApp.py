@@ -471,6 +471,8 @@ class MusicPlayerGUI:
                 tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
                 while not musicDownloadErrors.empty():
                     _ = musicDownloadErrors.get(block=False)
+        except FileNotFoundError:
+            tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         finally:

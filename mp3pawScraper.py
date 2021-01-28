@@ -1,7 +1,7 @@
 import time
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.common.exceptions import ElementClickInterceptedException, NoSuchElementException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 from threading import Thread
@@ -59,6 +59,10 @@ class MusicDownload():
             _tempVar = musicDownloadCancelledFlag.get(block=False)
             self.quitDownload()
 
+    def findSongInText(self, textElement, artistName: str, songTitle: str):
+        artistName, songTitle = artistName.title(), songTitle.title()
+        return True if artistName in textElement.text and songTitle in textElement.text else False
+
     def mp3pawscraper(self, artistName, songTitle):
         if artistName == '' or songTitle == '':
             musicDownloadErrors.put("ERROR: fields cannot be empty")
@@ -82,37 +86,55 @@ class MusicDownload():
                     time.sleep(.3)
                 time.sleep(1)
                 searchElem.send_keys(Keys.ENTER)
-                downloadButton = self.driver.find_elements_by_tag_name('li')
+                elementTextList = self.driver.find_elements_by_css_selector("div[class='mp3-head'] h3")
+                index: int = 0
                 downloadElem = None
-                for tag in downloadButton:
-                    if tag.text == "Download MP3":
-                        downloadElem = tag
+                fileFound: bool = False
+                for text in elementTextList:
+                    if self.findSongInText(text, artistName, songTitle):
+                        downloadElem = self.driver.find_elements_by_css_selector('li[class="mp3dl"]')[index]
+                        fileFound = True
                         break
-                time.sleep(2)
-                downloadElem.click()
-                time.sleep(3)
-                windows = self.driver.window_handles
-                self.driver.switch_to.window(windows[1])
-                self.driver.get_cookies()
-                buttons = self.driver.find_elements_by_css_selector('ul > li')
-                fileChecker = Thread(target=self.checkFilePresence, args=(self.path, numberOfFilesInitially, timeNow))
-                fileChecker.start()
-                params = {'behavior': 'allow', 'downloadPath': self.path}
-                self.driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
-                for i in range(5):
-                    buttons[7].click()
-                    time.sleep(1)
-                    break
-                fileFoundMessage()
-                fileChecker.join()
-                musicDownloadNotification.put(True, block=False)
-                self.fileDownloaded = True
-                self.driver.quit()
+                    index += 1
+                if fileFound:
+                    downloadElem.click()
+                    time.sleep(3)
+                    windows = self.driver.window_handles
+                    self.driver.switch_to.window(windows[1])
+                    self.driver.get_cookies()
+                    buttons = self.driver.find_elements_by_css_selector('ul > li')
+                    fileChecker = Thread(target=self.checkFilePresence, args=(self.path, numberOfFilesInitially, timeNow))
+                    fileChecker.start()
+                    params = {'behavior': 'allow', 'downloadPath': self.path}
+                    self.driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
+                    for i in range(5):
+                        buttons[7].click()
+                        time.sleep(1)
+                        break
+                    fileFoundMessage()
+                    fileChecker.join()
+                    musicDownloadNotification.put(True, block=False)
+                    self.fileDownloaded = True
+                    self.driver.quit()
+                else:
+                    raise FileNotFoundError
             except ElementClickInterceptedException as error:
                 self.driver.quit()
                 musicDownloadErrors.put(error, block=False)
                 raise error
+            except NoSuchElementException as error:
+                self.driver.quit()
+                musicDownloadErrors.put(error, block=False)
+                raise error
             except WebDriverException as error:
+                self.driver.quit()
+                musicDownloadErrors.put(error, block=False)
+                raise error
+            except FileNotFoundError as error:
+                self.driver.quit()
+                musicDownloadErrors.put("FILE NOT FOUND", block=False)
+                raise error
+            except BaseException as error:
                 self.driver.quit()
                 musicDownloadErrors.put(error, block=False)
                 raise error
