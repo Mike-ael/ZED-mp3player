@@ -40,7 +40,7 @@ class VideoDownLoad():
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
         downloadPath = r'C:\Users\HP\Downloads'
         found = False
-        while not found:
+        while not found and videoDownloadErrors.qsize() == 0:
             numberOfFilesNow = len(os.listdir(downloadPath))
             if numberOfFilesNow > numberOfFilesInitially:
                 for folders, subfolders, files in os.walk(downloadPath):
@@ -89,6 +89,12 @@ class VideoDownLoad():
             fileChecker.start()
             downloadButton.click()
             fileChecker.join()
+            if videoDownloadErrors.qsize() == 0:
+                videoDownloadNotification.put(True, block = False)
+                self.fileDownloaded = True
+            else:
+                raise BaseException
+            self.driver2.quit()
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
             self.driver2.quit()
@@ -101,9 +107,6 @@ class VideoDownLoad():
             videoDownloadErrors.put(error)
             self.driver2.quit()
             raise error
-        else:
-            self.fileDownloaded = True
-            self.driver2.quit()
 
     def startMP4Download(self, link):
         fileFoundMessage()
@@ -118,6 +121,12 @@ class VideoDownLoad():
             fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.mp4'])
             fileChecker.start()
             fileChecker.join()
+            if videoDownloadErrors.qsize() == 0:
+                videoDownloadNotification.put(True, block = False)
+                self.fileDownloaded = True
+            else:
+                raise BaseException
+            self.driver1.quit()
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
             self.driver1.quit()
@@ -130,8 +139,6 @@ class VideoDownLoad():
             videoDownloadErrors.put(error)
             self.driver1.quit()
             raise error
-        else:
-            self.driver1.quit()
 
 
     def search(self, string, link):

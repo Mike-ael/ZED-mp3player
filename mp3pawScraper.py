@@ -23,11 +23,11 @@ class MusicDownload():
         self.webUrl = r'https://mp3paw.com/'
         self.chrome_options = Options()
         self.chrome_options.add_argument('--disable-notifications')
-        self.chrome_options.add_argument('--headless')
+        #self.chrome_options.add_argument('--headless')
         self.fileDownloaded = False
     def checkFilePresence(self, downloadPath, numberOfFilesInitially, timeNow):
         found = False
-        while not found:
+        while not found and musicDownloadErrors.qsize() == 0:
             numberOfFilesNow = len(os.listdir(downloadPath))
             if numberOfFilesNow > numberOfFilesInitially:
                 for folders, subfolders, files in os.walk(downloadPath):
@@ -83,7 +83,7 @@ class MusicDownload():
                 keyword = artistName + " " + songTitle
                 for letter in keyword:
                     searchElem.send_keys(letter)
-                    time.sleep(.3)
+                    time.sleep(.1)
                 time.sleep(1)
                 searchElem.send_keys(Keys.ENTER)
                 elementTextList = self.driver.find_elements_by_css_selector("div[class='mp3-head'] h3")
@@ -113,8 +113,11 @@ class MusicDownload():
                         break
                     fileFoundMessage()
                     fileChecker.join()
-                    musicDownloadNotification.put(True, block=False)
-                    self.fileDownloaded = True
+                    if musicDownloadErrors.qsize() == 0:
+                        musicDownloadNotification.put(True, block=False)
+                        self.fileDownloaded = True
+                    else:
+                        raise BaseException
                     self.driver.quit()
                 else:
                     raise FileNotFoundError
