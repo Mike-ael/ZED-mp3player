@@ -4,50 +4,32 @@
 #include <string>
 #include <mutex>
 #include <vector>
-#include <string_view>
 #include <fstream>
 #include <thread>
+#include <algorithm>
 namespace fs = std::filesystem;
-
-namespace os {
-	class path {
-	public:
-		path() = default;
-		std::vector<std::string> listdir(const fs::path& path) {
-			std::vector<std::string> dirList;
-			dirList.reserve(10);
-			for (auto& file : fs::directory_iterator(path)) {
-				dirList.emplace_back(file.path().relative_path().string());
-				if (dirList.capacity() == dirList.size())
-					dirList.reserve(10);
-			}
-			dirList.shrink_to_fit();
-			return dirList;
-		}
-	};
-}
 class sharedResource {
 public:
 	sharedResource() {
-		outputFile1.open(path1, std::ios_base::out);
+		outputFile1.open(path1, std::ios_base::out);	
 		outputFile2.open(path2, std::ios_base::out);
 	}
-	void write(std::string_view file1, std::string_view file2) {
+	void write(std::vector<std::string> vecStr1, std::vector<std::string> vecStr2) {
 		std::lock_guard<std::mutex> guard(mut);
-		outputFile1 << file1;
-		outputFile2 << file2;
-	}
-	void print() {
+		//std::sort(std::begin(vecStr1), std::end(vecStr1));
+		//std::sort(std::begin(vecStr2), std::end(vecStr2));
 		if (outputFile1.is_open() && outputFile2.is_open()) {
-			outputFile1 << output1.str();
-			outputFile2 << output2.str();
+			auto [outputPath, outputFilename] = std::pair(std::ostream_iterator<std::string>(outputFile1), std::ostream_iterator<std::string>(outputFile2));
+			std::copy(std::cbegin(vecStr2), std::cend(vecStr2), outputPath);
+			std::copy(std::cbegin(vecStr1), std::cend(vecStr1), outputFilename);
 		}
+	}
+	~sharedResource() {
 		outputFile1.close();
 		outputFile2.close();
 	}
 private:
 	std::mutex mut;
-	std::ostringstream output1, output2;
 	std::fstream outputFile1, outputFile2;
 	std::string path1 = R"(songpath.txt)",
 		path2 = R"(songfile.txt)";
@@ -57,43 +39,39 @@ auto resource = sharedResource();
 void searchDrive(fs::path folder)
 {
 	auto isFile = [](const fs::path file) {return file.filename().extension() == ".mp3"; };
-	std::ostringstream threadIO1, threadIO2;
+	std::vector<std::string> pathVec, fileNamevec;
+	pathVec.reserve(500);
+	fileNamevec.reserve(500);
 	try {
 		if (fs::exists(folder) && fs::is_directory(folder))
 		{
 			for (auto const& entry : fs::recursive_directory_iterator(folder, fs::directory_options::skip_permission_denied)) {
 				try {
 					if (isFile(entry)) {
-						threadIO1 << entry.path().filename().string() << "\n";
-						threadIO2 << entry.path().parent_path().string() << "\n";
+						if(pathVec.capacity() == std::size(pathVec))
+							pathVec.reserve(50);
+							fileNamevec.reserve(50);
+						pathVec.emplace_back(entry.path().filename().string() + "\n");
+						fileNamevec.emplace_back(entry.path().parent_path().string() + "\n");
 					}
 				}
-				catch (fs::filesystem_error const& error) {}
-				catch (std::exception const& error) {}
+				catch (fs::filesystem_error const&) {}
+				catch (std::exception const&) {}
 			}
-			resource.write(threadIO2.str(), threadIO1.str());
+			resource.write(pathVec, fileNamevec);
 		}
 	}
-	catch (fs::filesystem_error const& error) {}
-	catch (std::exception const& error) {}
+	catch (fs::filesystem_error const&) {}
+	catch (std::exception const&) {}
 }
 int main() {
-	fs::path rootFolder = "C:\\";
-	auto list = os::path().listdir(rootFolder);
+	std::vector<fs::path> folders{ R"(C:\Users\HP\Music\my music)" , R"(C:\Users\HP\Music\music)" };
 	std::vector<std::thread> thread_list;
-	thread_list.reserve(std::size(list));
-	auto counter{ 0 };
-
-	for (auto &folder : list) {
-		if (folder == "Windows")
-			continue;
-		else {
-			thread_list.emplace_back(std::thread(searchDrive, rootFolder.string() + folder));
-		}
-	}
-
+	thread_list.reserve(std::size(folders));
+	std::for_each(std::cbegin(folders), std::cend(folders), [&thread_list](fs::path folder) {
+		thread_list.emplace_back(std::thread(searchDrive, folder));
+		});
 	for (auto& thread : thread_list) {
 		thread.join();
 	}
-	resource.print();
 }

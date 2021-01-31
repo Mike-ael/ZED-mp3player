@@ -477,7 +477,7 @@ class MusicPlayerGUI:
         finally:
             # delete task from queue
             self.musicDownloadList.get(block=False)
-            while musicDownloadErrors.empty == False:
+            while musicDownloadErrors.empty() == False:
                 tempVar = musicDownloadErrors.get(block=False)
 
     def cancelMusicDownload(self):
@@ -540,7 +540,7 @@ class MusicPlayerGUI:
         finally:
             # delete task from queue
             self.videoDownloadList.get(block=False)
-            while videoDownloadErrors.empty == False:
+            while videoDownloadErrors.empty() == False:
                 tempVar = videoDownloadErrors.get(block=False)
 
     def cancelDownload(self):
@@ -551,6 +551,7 @@ class MusicPlayerGUI:
             tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
 
     def updateSongList(self):
+        sleep(12)
         global genreList, artistList, albumList, songYear, songNameList
         try:
             searchForSongs()
