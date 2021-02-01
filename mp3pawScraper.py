@@ -25,17 +25,17 @@ class MusicDownload():
         self.chrome_options.add_argument('--disable-notifications')
         #self.chrome_options.add_argument('--headless')
         self.fileDownloaded = False
-    def checkFilePresence(self, downloadPath, numberOfFilesInitially, timeNow):
+    def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
         found = False
         while not found and musicDownloadErrors.qsize() == 0:
-            numberOfFilesNow = len(os.listdir(downloadPath))
+            numberOfFilesNow = len(os.listdir(self.path))
             if numberOfFilesNow > numberOfFilesInitially:
-                for folders, subfolders, files in os.walk(downloadPath):
+                for folders, subfolders, files in os.walk(self.path):
                     for file in files:
                         try:
                             creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
                             if creationTime > timeNow:
-                                if file.endswith('.mp3'):
+                                if file.endswith(extension):
                                     return
                         except FileNotFoundError as error:
                             raise error
@@ -103,7 +103,7 @@ class MusicDownload():
                     self.driver.switch_to.window(windows[1])
                     self.driver.get_cookies()
                     buttons = self.driver.find_elements_by_css_selector('ul > li')
-                    fileChecker = Thread(target=self.checkFilePresence, args=(self.path, numberOfFilesInitially, timeNow))
+                    fileChecker = Thread(target=self.checkFilePresence, args=(numberOfFilesInitially, timeNow, '.mp3'))
                     fileChecker.start()
                     params = {'behavior': 'allow', 'downloadPath': self.path}
                     self.driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
