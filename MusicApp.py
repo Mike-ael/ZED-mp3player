@@ -22,7 +22,7 @@ from random import randrange
 import re
 import os
 from queue import Queue, Empty, Full
-from loadMusicProperties import loadProperties
+from loadMusicProperties import Properties
 from mutagen.id3 import ID3
 from PIL import Image
 from io import BytesIO
@@ -33,7 +33,7 @@ from netnaijaScraper import VideoDownLoad, videoDownloadCancelledFlag
 from netnaijaScraper import ElementClickInterceptedException, TimeoutException
 from netnaijaScraper import NoSuchElementException, WebDriverException, InvalidArgumentException
 from netnaijaScraper import videoDownloadErrors, videoDownloadNotification
-from loadMusicProperties import genreList, artistList, albumList, songYear, songNameList
+
 pygame.mixer.pre_init(44100, 16, 2, 1024 * 4)
 pygame.init()
 currentSongIndex = 0
@@ -106,7 +106,6 @@ class MusicPlayerGUI:
         global playListNames
         global playListContent
         global tabID
-        global genreList, artistList, albumList, songYear, songNameList
         self.currentMusicTimequeue = None
         self.path = r'C:\\'
         self.searchSongsInCDriveThread = Thread(target= self.loadSongs)
@@ -436,7 +435,7 @@ class MusicPlayerGUI:
         try:
             searchForSongs()
             update()
-            loadProperties()
+            self.properties = Properties(musicFilePathList)
         except tk.TclError:
             pass
 
@@ -552,7 +551,6 @@ class MusicPlayerGUI:
 
     def updateSongList(self):
         sleep(12)
-        global genreList, artistList, albumList, songYear, songNameList
         try:
             searchForSongs()
             update()
@@ -560,12 +558,8 @@ class MusicPlayerGUI:
             pass
         self.listBox.delete(0, len(musicFilenameList)-1)
         self.fillListBox()
-        genreList.clear()
-        artistList.clear()
-        albumList.clear()
-        songYear.clear()
-        songNameList.clear()
-        loadProperties()
+        self.properties.clearLists()
+        self.properties.loadProperties(musicFilePathList)
 
     def highlight(self, event):
         global popupON
@@ -772,7 +766,7 @@ class MusicPlayerGUI:
                 for elem in musicFilenameList:
                     self.listBox.insert(tk.END, elem)
                 self.checkAndUpdatePlaylists(indexToDelete)
-                loadProperties()
+                self.properties.loadProperties()
             except PermissionError as error:
                 tkinter.messagebox.showerror('<Delete Error>', error)
         else:
@@ -802,7 +796,7 @@ class MusicPlayerGUI:
                 for elem in musicFilenameList:
                     self.listBox.insert(tk.END, elem)
                 self.checkAndUpdatePlaylists(indexToDelete)
-                loadProperties()
+                self.properties.loadProperties()
             except PermissionError as error:
                 tkinter.messagebox.showerror('<Delete Error>', error)
         else:
@@ -870,12 +864,12 @@ class MusicPlayerGUI:
             secondsInString = '0' + str(seconds)
         time = minutesInString + ':' + secondsInString
         tkinter.messagebox.showinfo('<File Properties>',f'''
-Song title: {songNameList[indexToShowProperties]}
-Artist: {artistList[indexToShowProperties]}
-Genre:  {genreList[indexToShowProperties]}
-Album: {albumList[indexToShowProperties]}
+Song title: {self.properties.songNameList[indexToShowProperties]}
+Artist: {self.properties.artistList[indexToShowProperties]}
+Genre:  {self.properties.genreList[indexToShowProperties]}
+Album: {self.properties.albumList[indexToShowProperties]}
 Length: {time}
-Year: {songYear[indexToShowProperties]}
+Year: {self.properties.songYear[indexToShowProperties]}
 file Location: {musicFilePathList[indexToShowProperties]}
 ''')
 
@@ -899,12 +893,12 @@ file Location: {musicFilePathList[indexToShowProperties]}
             secondsInString = '0' + str(seconds)
         time = minutesInString + ':' + secondsInString
         tkinter.messagebox.showinfo('<File Properties>',f'''
-title: {songNameList[indexToShowProperties]}
-Artist: {artistList[indexToShowProperties]}
-Genre: {genreList[indexToShowProperties]}
-Album: {albumList[indexToShowProperties]}
+title: {self.properties.songNameList[indexToShowProperties]}
+Artist: {self.properties.artistList[indexToShowProperties]}
+Genre: {self.properties.genreList[indexToShowProperties]}
+Album: {self.properties.albumList[indexToShowProperties]}
 Length: {time}
-Year: {songYear[indexToShowProperties]}
+Year: {self.properties.songYear[indexToShowProperties]}
 file Location: {musicFilePathList[indexToShowProperties]}
 ''')
 
@@ -929,12 +923,12 @@ file Location: {musicFilePathList[indexToShowProperties]}
                 secondsInString = '0' + str(seconds)
             time = minutesInString + ':' + secondsInString
             tkinter.messagebox.showinfo('<File Properties>', f'''
-            title: {songNameList[indexToShowProperties]}
-            Artist: {artistList[indexToShowProperties]}
-            Genre: {genreList[indexToShowProperties]}
-            Album: {albumList[indexToShowProperties]}
+            title: {self.properties.songNameList[indexToShowProperties]}
+            Artist: {self.properties.artistList[indexToShowProperties]}
+            Genre: {self.properties.genreList[indexToShowProperties]}
+            Album: {self.properties.albumList[indexToShowProperties]}
             Length: {time}
-            Year: {songYear[indexToShowProperties]}
+            Year: {self.properties.songYear[indexToShowProperties]}
             file Location: {musicFilePathList[indexToShowProperties]}
             ''')
         except IndexError:
