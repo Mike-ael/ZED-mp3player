@@ -69,7 +69,7 @@ class Properties(object):
 
     def parallelLoadProperties(self, begin: int, end: int, pathList):
         length = end - begin
-        blockSize = 100
+        blockSize = 150
         if length <= blockSize:
             self.mainLoadingFunc(begin, end, pathList)
         else:
