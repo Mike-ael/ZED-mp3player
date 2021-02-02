@@ -36,32 +36,44 @@ class MusicDownload():
                             creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
                             if creationTime > timeNow:
                                 if file.endswith(extension):
+                                    found = True
                                     return
-                        except FileNotFoundError as error:
-                            raise error
+                        except FileNotFoundError:
+                            musicDownloadErrors.put("FILE NOT FOUND")
                         except BaseException as error:
-                            raise error
+                            musicDownloadErrors.put(error)
+        print('exiting')
 
     def quitDownload(self):
         try:
-            self.driver.quit()
+            musicDownloadErrors.put("Download cancelled")
+            print('download cancelled')
         except WebDriverException:
             pass
         except AttributeError:
             pass
-        finally:
-            musicDownloadErrors.put("Download cancelled")
 
     def checkCancelled(self):
-        while not musicDownloadCancelledFlag.qsize() == 1 and not self.fileDownloaded:
+        while musicDownloadCancelledFlag.qsize() == 0 and self.fileDownloaded == False:
             pass
-        if not self.fileDownloaded:
-            _tempVar = musicDownloadCancelledFlag.get(block=False)
+        cancelled = musicDownloadCancelledFlag.get(block=False)
+        print(cancelled)
+        if self.fileDownloaded == False and cancelled:
+            musicDownloadCancelledFlag.put(True, block=False)
             self.quitDownload()
 
     def findSongInText(self, textElement, artistName: str, songTitle: str):
         artistName, songTitle = artistName.title(), songTitle.title()
         return True if artistName in textElement.text and songTitle in textElement.text else False
+
+    def connectionCheck(self):
+        while self.fileDownloaded == False:
+            try:
+                self.driver.get('https://google.com')
+                time.sleep(5)
+            except WebDriverException as error:
+                musicDownloadErrors.put(error)
+                break
 
     def mp3pawscraper(self, artistName, songTitle):
         if artistName == '' or songTitle == '':
@@ -69,11 +81,11 @@ class MusicDownload():
             raise
         else:
             try:
-                downloadCanceledCheck = Thread(target=self.checkCancelled, args=[], daemon=True)
-                downloadCanceledCheck.start()
                 searchMessage()
                 artistName = artistName.lower().strip()
                 songTitle = songTitle.lower().strip()
+                downloadCanceledCheck = Thread(target=self.checkCancelled, args=[])
+                downloadCanceledCheck.start()
                 numberOfFilesInitially = len(os.listdir(self.path))
                 timeNow = datetime.datetime.now()
                 self.driver = webdriver.Chrome(options=self.chrome_options)
@@ -111,33 +123,45 @@ class MusicDownload():
                         buttons[7].click()
                         time.sleep(1)
                         break
+                    connectionChecker = Thread(target = self.connectionCheck, args = [])
+                    connectionChecker.start()
                     fileFoundMessage()
                     fileChecker.join()
+                    self.fileDownloaded = True
+                    #if download was not cancelled and no filesystem error
                     if musicDownloadErrors.qsize() == 0:
                         musicDownloadNotification.put(True, block=False)
-                        self.fileDownloaded = True
-                    else:
+                        downloadCanceledCheck.join()
+                        connectionChecker.join()
+                        self.driver.quit()
+                    elif musicDownloadCancelledFlag.qsize() == 1:
+                        downloadCanceledCheck.join()
+                        connectionChecker.join()
                         raise BaseException
-                    self.driver.quit()
+                    elif musicDownloadCancelledFlag.qsize() == 0 and musicDownloadErrors.qsize() > 0:
+                        musicDownloadCancelledFlag.put(False, block = False)
+                        downloadCanceledCheck.join()
+                        connectionChecker.join()
+                        raise BaseException
                 else:
                     raise FileNotFoundError
             except ElementClickInterceptedException as error:
-                self.driver.quit()
                 musicDownloadErrors.put(error, block=False)
+                self.driver.quit()
                 raise error
             except NoSuchElementException as error:
-                self.driver.quit()
                 musicDownloadErrors.put(error, block=False)
+                self.driver.quit()
                 raise error
             except WebDriverException as error:
-                self.driver.quit()
                 musicDownloadErrors.put(error, block=False)
+                self.driver.quit()
                 raise error
             except FileNotFoundError as error:
-                self.driver.quit()
                 musicDownloadErrors.put("FILE NOT FOUND", block=False)
+                self.driver.quit()
                 raise error
             except BaseException as error:
-                self.driver.quit()
                 musicDownloadErrors.put(error, block=False)
+                self.driver.quit()
                 raise error

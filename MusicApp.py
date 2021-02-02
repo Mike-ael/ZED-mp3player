@@ -459,16 +459,12 @@ class MusicPlayerGUI:
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                 while not musicDownloadNotification.empty():
-                    tempVar = musicDownloadNotification.get(block=False)
+                    _ = musicDownloadNotification.get(block=False)
                 self.updateSongList()
         except ElementClickInterceptedException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         except WebDriverException:
-            if musicDownloadErrors.qsize() == 1:
                 tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
-            elif musicDownloadErrors.qsize() == 2:
-                tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
-
         except FileNotFoundError:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         except BaseException:
@@ -476,8 +472,10 @@ class MusicPlayerGUI:
         finally:
             # delete task from queue
             self.musicDownloadList.get(block=False)
+            while musicDownloadCancelledFlag.empty() == False:
+                _ = musicDownloadCancelledFlag.get(block=False)
             while musicDownloadErrors.empty() == False:
-                tempVar = musicDownloadErrors.get(block=False)
+                _ = musicDownloadErrors.get(block=False)
 
     def cancelMusicDownload(self):
         try:
@@ -514,6 +512,8 @@ class MusicPlayerGUI:
             if videoDownloadNotification.empty() == False:
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
+                while not videoDownloadNotification.empty():
+                    _ = videoDownloadNotification.get(block=False)
                 
         except IndexError:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
@@ -528,19 +528,16 @@ class MusicPlayerGUI:
         except NoSuchElementException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         except WebDriverException:
-            if videoDownloadErrors.qsize() == 1:
                 tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
-            elif videoDownloadErrors.qsize() == 2:
-                tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
-                while not videoDownloadErrors.empty():
-                    _ = videoDownloadErrors.get(block=False)
         except BaseException:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
         finally:
             # delete task from queue
             self.videoDownloadList.get(block=False)
+            while videoDownloadCancelledFlag.empty() == False:
+                _ = videoDownloadCancelledFlag.get(block=False)
             while videoDownloadErrors.empty() == False:
-                tempVar = videoDownloadErrors.get(block=False)
+                _ = videoDownloadErrors.get(block=False)
 
     def cancelDownload(self):
         try:

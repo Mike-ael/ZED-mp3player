@@ -38,62 +38,74 @@ class VideoDownLoad():
         driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
 
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
-        downloadPath = r'C:\Users\HP\Downloads'
         found = False
         while not found and videoDownloadErrors.qsize() == 0:
-            numberOfFilesNow = len(os.listdir(downloadPath))
+            numberOfFilesNow = len(os.listdir(self.downloadPath))
             if numberOfFilesNow > numberOfFilesInitially:
-                for folders, subfolders, files in os.walk(downloadPath):
+                for folders, subfolders, files in os.walk(self.downloadPath):
                     for file in files:
                         try:
                             creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
                             if creationTime > timeNow:
                                 if file.endswith(extension):
-                                    videoDownloadNotification.put(True, block=False)
                                     return
                         except FileNotFoundError:
-                            pass
-                        except BaseException:
-                            pass
+                            videoDownloadErrors.put("FILE NOT FOUND")
+                        except BaseException as error:
+                            videoDownloadErrors.put(error)
 
-    def quitDownload(self):
+    def quitMainDriverDownload(self):
         try:
+            videoDownloadErrors.put("Download cancelled")
             self.driver.quit()
-            self.driver1.quit()
-            self.driver2.quit()
         except WebDriverException:
             pass
         except AttributeError:
             pass
-        finally:
-            videoDownloadErrors.put("Download cancelled")
 
-    def checkCancelled(self):
-        while not videoDownloadCancelledFlag.qsize() == 1 and not self.fileDownloaded:
+    def quitMp4Download(self):
+        try:
+            videoDownloadErrors.put('Download cancelled', block=False)
+        except WebDriverException:
             pass
-        if not self.fileDownloaded:
-            _tempVar = videoDownloadCancelledFlag.get()
-            self.quitDownload()
+        except AttributeError:
+            pass
 
+    def checkSearchCancelled(self):
+        while videoDownloadCancelledFlag.qsize() == 0:
+            pass
+        self.quitMainDriverDownload()
+
+    def checkMp4DownloadCancelled(self):
+        while videoDownloadCancelledFlag.qsize() == 0 and self.fileDownloaded == False:
+            pass
+        cancelled = videoDownloadCancelledFlag.get(block=False)
+        print(cancelled)
+        if self.fileDownloaded == False and cancelled:
+            videoDownloadCancelledFlag.put(True, False)
+            self.quitMainDriverDownload()
+
+    def connectionCheck(self):
+        while self.fileDownloaded == False:
+            try:
+                self.driver.get('https://google.com')
+                sleep(5)
+            except WebDriverException as error:
+                videoDownloadErrors.put(error)
+                break
 
     def startSRTDownload(self, link):
         try:
             self.driver2 = webdriver.Chrome(options=self.chromeOptions)
             self.driver2.get(link)
             self.headlessDownloadRequirement(self.driver2)
-            numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
             timeNow = datetime.datetime.now()
             downloadButton = self.driver2.find_element_by_css_selector(
-            """div[id = 'app-content'] div[id = 'file-page'] div[id = 'action-buttons'] button""")
-            fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.srt'])
-            fileChecker.start()
+                """div[id = 'app-content'] div[id = 'file-page'] div[id = 'action-buttons'] button""")
             downloadButton.click()
-            fileChecker.join()
-            if videoDownloadErrors.qsize() == 0:
-                videoDownloadNotification.put(True, block = False)
-                self.fileDownloaded = True
-            else:
-                raise BaseException
+            sleep(15)
+            videoDownloadNotification.put(True, block = False)
+            self.fileDownloaded = True
             self.driver2.quit()
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
@@ -109,22 +121,36 @@ class VideoDownLoad():
             raise error
 
     def startMP4Download(self, link):
-        fileFoundMessage()
         try:
+            downloadCancelCheck = Thread(target=self.checkMp4DownloadCancelled, args=())
+            downloadCancelCheck.start()
+            numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
+            timeNow = datetime.datetime.now()
+            fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.mp4'])
+            fileChecker.start()
             self.driver1 = webdriver.Chrome(options=self.chromeOptions)
             self.driver1.get(link)
             self.headlessDownloadRequirement(self.driver1)
-            numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
-            timeNow = datetime.datetime.now()
             downloadButton = self.driver1.find_element_by_css_selector("""div[id = 'app-content'] div[id = 'file-page'] div[id = 'action-buttons'] button""")
             downloadButton.click()
-            fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.mp4'])
-            fileChecker.start()
+            connectionChecker = Thread(target = self.connectionCheck, args = [])
+            connectionChecker.start()
+            fileFoundMessage()
             fileChecker.join()
+            self.fileDownloaded = True
             if videoDownloadErrors.qsize() == 0:
                 videoDownloadNotification.put(True, block = False)
                 self.fileDownloaded = True
-            else:
+                downloadCancelCheck.join()
+                connectionChecker.join()
+            elif videoDownloadCancelledFlag.qsize() == 1:
+                downloadCancelCheck.join()
+                connectionChecker.join()
+                raise BaseException
+            elif videoDownloadCancelledFlag.qsize() == 0 and videoDownloadErrors.qsize() > 0:
+                videoDownloadCancelledFlag.put(False, block=False)
+                downloadCancelCheck.join()
+                connectionChecker.join()
                 raise BaseException
             self.driver1.quit()
         except NoSuchElementException as error:
@@ -139,6 +165,10 @@ class VideoDownLoad():
             videoDownloadErrors.put(error)
             self.driver1.quit()
             raise error
+        except BaseException as error:
+            videoDownloadErrors.put(error, block=False)
+            self.driver1.quit()
+            raise error
 
 
     def search(self, string, link):
@@ -149,7 +179,7 @@ class VideoDownLoad():
             videoDownloadErrors.put('ERROR: Movie name field cannot be empty')
             raise
         else:
-            downloadCanceledCheck = Thread(target=self.checkCancelled, args=(), daemon=True)
+            downloadCanceledCheck = Thread(target=self.checkSearchCancelled, args=(), daemon=True)
             downloadCanceledCheck.start()
             searchMessage()
             movieName = movie_name
