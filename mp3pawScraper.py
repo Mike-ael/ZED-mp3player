@@ -25,19 +25,21 @@ class MusicDownload():
         self.chrome_options.add_argument('--disable-notifications')
         #self.chrome_options.add_argument('--headless')
         self.fileDownloaded = False
-    def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
+    def checkFilePresence(self, numberOfFilesInitially, timeNow, extension, artistName, songTitle):
         found = False
+        isFile = lambda file, name, title: name.title() in file and title.title() in file
         while not found and musicDownloadErrors.qsize() == 0:
             numberOfFilesNow = len(os.listdir(self.path))
             if numberOfFilesNow > numberOfFilesInitially:
                 for folders, subfolders, files in os.walk(self.path):
                     for file in files:
                         try:
-                            creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
-                            if creationTime > timeNow:
-                                if file.endswith(extension):
-                                    found = True
-                                    return
+                            if isFile(file, artistName, songTitle):
+                                creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
+                                if creationTime > timeNow:
+                                    if file.endswith(extension):
+                                        found = True
+                                        return
                         except FileNotFoundError:
                             musicDownloadErrors.put("FILE NOT FOUND")
                         except BaseException as error:
@@ -46,7 +48,7 @@ class MusicDownload():
 
     def quitDownload(self):
         try:
-            musicDownloadErrors.put("Download cancelled")
+            musicDownloadErrors.put("Download cancelled", block=False)
             print('download cancelled')
         except WebDriverException:
             pass
@@ -56,11 +58,13 @@ class MusicDownload():
     def checkCancelled(self):
         while musicDownloadCancelledFlag.qsize() == 0 and self.fileDownloaded == False:
             pass
-        cancelled = musicDownloadCancelledFlag.get(block=False)
-        print(cancelled)
-        if self.fileDownloaded == False and cancelled:
-            musicDownloadCancelledFlag.put(True, block=False)
-            self.quitDownload()
+        if not self.fileDownloaded:
+            cancelled = musicDownloadCancelledFlag.get(block=False)
+            print(cancelled)
+            if cancelled:
+                musicDownloadCancelledFlag.put(True, block=False)
+                self.quitDownload()
+
 
     def findSongInText(self, textElement, artistName: str, songTitle: str):
         artistName, songTitle = artistName.title(), songTitle.title()
@@ -115,7 +119,7 @@ class MusicDownload():
                     self.driver.switch_to.window(windows[1])
                     self.driver.get_cookies()
                     buttons = self.driver.find_elements_by_css_selector('ul > li')
-                    fileChecker = Thread(target=self.checkFilePresence, args=(numberOfFilesInitially, timeNow, '.mp3'))
+                    fileChecker = Thread(target=self.checkFilePresence, args=(numberOfFilesInitially, timeNow, '.mp3', songTitle, artistName))
                     fileChecker.start()
                     params = {'behavior': 'allow', 'downloadPath': self.path}
                     self.driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
@@ -125,7 +129,8 @@ class MusicDownload():
                         break
                     connectionChecker = Thread(target = self.connectionCheck, args = [])
                     connectionChecker.start()
-                    fileFoundMessage()
+                    if musicDownloadCancelledFlag.qsize() == 0:
+                        fileFoundMessage()
                     fileChecker.join()
                     self.fileDownloaded = True
                     #if download was not cancelled and no filesystem error

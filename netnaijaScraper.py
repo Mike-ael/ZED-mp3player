@@ -24,14 +24,14 @@ class VideoDownLoad():
     def __init__(self):
         self.chromeOptions = Options()
         self.chromeOptions.add_argument('--disable-notifications')
-        self.chromeOptions.add_argument('--headless')
+        #self.chromeOptions.add_argument('--headless')
         self.driver = None
         self.driver1 = None
         self.driver2 = None
         self.mp4Link = None
         self.srtLink = None
         self.downloadPath = r'C:\Users\HP\Downloads'
-        self.fileDownloaded = False
+        self.fileDownloaded = False #used to notify checkDownloadCancelled function
 
     def headlessDownloadRequirement(self, driver):
         params = {'behavior': 'allow', 'downloadPath': self.downloadPath}
@@ -54,14 +54,7 @@ class VideoDownLoad():
                         except BaseException as error:
                             videoDownloadErrors.put(error)
 
-    def quitMainDriverDownload(self):
-        try:
-            videoDownloadErrors.put("Download cancelled")
-            self.driver.quit()
-        except WebDriverException:
-            pass
-        except AttributeError:
-            pass
+
 
     def quitMp4Download(self):
         try:
@@ -71,19 +64,15 @@ class VideoDownLoad():
         except AttributeError:
             pass
 
-    def checkSearchCancelled(self):
-        while videoDownloadCancelledFlag.qsize() == 0:
-            pass
-        self.quitMainDriverDownload()
-
     def checkMp4DownloadCancelled(self):
         while videoDownloadCancelledFlag.qsize() == 0 and self.fileDownloaded == False:
             pass
-        cancelled = videoDownloadCancelledFlag.get(block=False)
-        print(cancelled)
-        if self.fileDownloaded == False and cancelled:
-            videoDownloadCancelledFlag.put(True, False)
-            self.quitMainDriverDownload()
+        if not self.fileDownloaded:
+            cancelled = videoDownloadCancelledFlag.get(block=False)
+            print(cancelled)
+            if cancelled:
+                videoDownloadCancelledFlag.put(True, block=False)
+                self.quitMainDriverDownload()
 
     def connectionCheck(self):
         while self.fileDownloaded == False:
@@ -96,27 +85,37 @@ class VideoDownLoad():
 
     def startSRTDownload(self, link):
         try:
+            numberOfFilesInitially = len(os.listdir(self.downloadPath))
+            timeNow = datetime.datetime.now()
+            fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.srt'])
+            fileChecker.start()
             self.driver2 = webdriver.Chrome(options=self.chromeOptions)
             self.driver2.get(link)
             self.headlessDownloadRequirement(self.driver2)
-            timeNow = datetime.datetime.now()
             downloadButton = self.driver2.find_element_by_css_selector(
                 """div[id = 'app-content'] div[id = 'file-page'] div[id = 'action-buttons'] button""")
             downloadButton.click()
-            sleep(15)
-            videoDownloadNotification.put(True, block = False)
-            self.fileDownloaded = True
-            self.driver2.quit()
+            fileChecker.join()
+            if videoDownloadErrors.qsize() == 0:
+                videoDownloadNotification.put(True, block = False)
+                self.driver2.quit()
+            elif videoDownloadCancelledFlag.qsize() == 1:
+                raise BaseException
+            elif videoDownloadErrors.qsize() > 0:
+                raise BaseException
         except NoSuchElementException as error:
-            videoDownloadErrors.put(error)
+            videoDownloadErrors.put(error, block=False)
             self.driver2.quit()
             raise error
         except InvalidArgumentException as error:
-            videoDownloadErrors.put(error)
+            videoDownloadErrors.put(error, block=False)
             self.driver2.quit()
             raise error
         except WebDriverException as error:
-            videoDownloadErrors.put(error)
+            videoDownloadErrors.put(error, block=False)
+            self.driver2.quit()
+            raise error
+        except BaseException as error:
             self.driver2.quit()
             raise error
 
@@ -124,7 +123,7 @@ class VideoDownLoad():
         try:
             downloadCancelCheck = Thread(target=self.checkMp4DownloadCancelled, args=())
             downloadCancelCheck.start()
-            numberOfFilesInitially = len(os.listdir(r'C:\Users\HP\Downloads'))
+            numberOfFilesInitially = len(os.listdir(self.downloadPath))
             timeNow = datetime.datetime.now()
             fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.mp4'])
             fileChecker.start()
@@ -140,9 +139,9 @@ class VideoDownLoad():
             self.fileDownloaded = True
             if videoDownloadErrors.qsize() == 0:
                 videoDownloadNotification.put(True, block = False)
-                self.fileDownloaded = True
                 downloadCancelCheck.join()
                 connectionChecker.join()
+                self.driver1.quit()
             elif videoDownloadCancelledFlag.qsize() == 1:
                 downloadCancelCheck.join()
                 connectionChecker.join()
@@ -152,27 +151,40 @@ class VideoDownLoad():
                 downloadCancelCheck.join()
                 connectionChecker.join()
                 raise BaseException
-            self.driver1.quit()
         except NoSuchElementException as error:
             videoDownloadErrors.put(error)
             self.driver1.quit()
             raise error
         except InvalidArgumentException as error:
-            videoDownloadErrors.put(error)
+            videoDownloadErrors.put(error, block=False)
             self.driver1.quit()
             raise error
         except WebDriverException as error:
-            videoDownloadErrors.put(error)
+            videoDownloadErrors.put(error, block=False)
             self.driver1.quit()
             raise error
         except BaseException as error:
-            videoDownloadErrors.put(error, block=False)
             self.driver1.quit()
             raise error
 
 
     def search(self, string, link):
         return string in link
+
+
+    def checkSearchCancelled(self):
+        while videoDownloadCancelledFlag.qsize() == 0:
+            pass
+        self.quitMainDriverDownload()
+
+    def quitMainDriverDownload(self):
+        try:
+            videoDownloadErrors.put("Download cancelled", block=False)
+            self.driver.quit()
+        except WebDriverException:
+            pass
+        except AttributeError:
+            pass
 
     def findFileLink(self, movie_name, _season=0, _episode=0):
         if movie_name == '':
@@ -250,27 +262,27 @@ class VideoDownLoad():
                     self.srtLink = downloadLinks[4].get_attribute('href')
             except IndexError as error:
                 self.driver.quit()
-                videoDownloadErrors.put(error)
+                videoDownloadErrors.put(error, block=False)
                 raise error
             except FileNotFoundError as error:
                 self.driver.quit()
-                videoDownloadErrors.put("ERROR: FILE NOT FOUND")
+                videoDownloadErrors.put("ERROR: FILE NOT FOUND", block=False)
                 raise error
             except ElementClickInterceptedException as error:
                 self.driver.quit()
-                videoDownloadErrors.put(error)
+                videoDownloadErrors.put(error, block=False)
                 raise error
             except TimeoutException as error:
                 self.driver.quit()
-                videoDownloadErrors.put(error)
+                videoDownloadErrors.put(error, block=False)
                 raise error
             except NoSuchElementException as error:
                 self.driver.quit()
-                videoDownloadErrors.put(error)
+                videoDownloadErrors.put(error, block=False)
                 raise error
             except WebDriverException as error:
                 self.driver.quit()
-                videoDownloadErrors.put(error)
+                videoDownloadErrors.put(error, block=False)
                 raise error
             else:
                 self.driver.quit()
