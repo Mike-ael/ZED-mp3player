@@ -24,12 +24,13 @@ class VideoDownLoad():
     def __init__(self):
         self.chromeOptions = Options()
         self.chromeOptions.add_argument('--disable-notifications')
-        #self.chromeOptions.add_argument('--headless')
+        self.chromeOptions.add_argument('--headless')
         self.driver = None
         self.driver1 = None
         self.driver2 = None
         self.mp4Link = None
         self.srtLink = None
+        self.downloadLinkSearchDone = False
         self.downloadPath = r'C:\Users\HP\Downloads'
         self.fileDownloaded = False #used to notify checkDownloadCancelled function
 
@@ -72,7 +73,7 @@ class VideoDownLoad():
             print(cancelled)
             if cancelled:
                 videoDownloadCancelledFlag.put(True, block=False)
-                self.quitMainDriverDownload()
+                self.quitMp4Download()
 
     def connectionCheck(self):
         while self.fileDownloaded == False:
@@ -174,9 +175,10 @@ class VideoDownLoad():
 
 
     def checkSearchCancelled(self):
-        while videoDownloadCancelledFlag.qsize() == 0:
+        while videoDownloadCancelledFlag.qsize() == 0 and self.downloadLinkSearchDone == False:
             pass
-        self.quitMainDriverDownload()
+        if not self.downloadLinkSearchDone:
+            self.quitMainDriverDownload()
 
     def quitMainDriverDownload(self):
         try:
@@ -192,7 +194,7 @@ class VideoDownLoad():
             videoDownloadErrors.put('ERROR: Movie name field cannot be empty')
             raise
         else:
-            downloadCanceledCheck = Thread(target=self.checkSearchCancelled, args=(), daemon=True)
+            downloadCanceledCheck = Thread(target=self.checkSearchCancelled, args=())
             downloadCanceledCheck.start()
             searchMessage()
             movieName = movie_name
@@ -286,5 +288,6 @@ class VideoDownLoad():
                 videoDownloadErrors.put(error, block=False)
                 raise error
             else:
+                self.downloadLinkSearchDone = True
                 self.driver.quit()
                 return self.mp4Link, self.srtLink
