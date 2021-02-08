@@ -24,7 +24,7 @@ class VideoDownLoad():
     def __init__(self):
         self.chromeOptions = Options()
         self.chromeOptions.add_argument('--disable-notifications')
-        self.chromeOptions.add_argument('--headless')
+        #self.chromeOptions.add_argument('--headless')
         self.driver = None
         self.driver1 = None
         self.driver2 = None
@@ -77,6 +77,7 @@ class VideoDownLoad():
     def connectionCheck(self):
         while self.fileDownloaded == False:
             try:
+                self.driver1.switch_to.window(self.driver1.window_handles[1])
                 self.driver1.get('https://google.com')
                 sleep(5)
             except WebDriverException as error:
@@ -132,9 +133,9 @@ class VideoDownLoad():
             self.headlessDownloadRequirement(self.driver1)
             downloadButton = self.driver1.find_element_by_css_selector("""div[id = 'app-content'] div[id = 'file-page'] div[id = 'action-buttons'] button""")
             downloadButton.click()
+            fileFoundMessage()
             connectionChecker = Thread(target = self.connectionCheck, args = [])
             connectionChecker.start()
-            fileFoundMessage()
             fileChecker.join()
             self.fileDownloaded = True
             if videoDownloadErrors.qsize() == 0:
