@@ -23,7 +23,7 @@ class MusicDownload():
         self.webUrl = r'https://mp3paw.com/'
         self.chrome_options = Options()
         self.chrome_options.add_argument('--disable-notifications')
-        #self.chrome_options.add_argument('--headless')
+        self.chrome_options.add_argument('--headless')
         self.fileDownloaded = False
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension, artistName, songTitle):
         found = False

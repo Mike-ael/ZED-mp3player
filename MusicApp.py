@@ -1005,7 +1005,7 @@ file Location: {musicFilePathList[indexToShowProperties]}
         # called when the user searches for particular items
     def searchForSong(self):
         global searchListBoxEmpty
-        if self.searchSong.get() == "":
+        if self.searchSong.get().isspace():
             pass
         else:
             searchListBoxEmpty = False
@@ -1016,9 +1016,9 @@ file Location: {musicFilePathList[indexToShowProperties]}
             searchString = str(self.searchSong.get())
             counter = 0 #counter is used to track the index of the songs being added to the search list box
                         #with respect to the main music list.
-            #you can also search for songs from multiple artists by separating their names by a comma
+            #you can also search for songs from multiple artists by separating their names by space
             #separate the names and load them in a list
-            artistNames = [names.strip() for names in searchString.split(" ")]
+            artistNames = [names.strip() for names in searchString.split()]
             for name in artistNames:
                 nameCapitalized = name.title()
                 nameInUppercase = name.upper()
