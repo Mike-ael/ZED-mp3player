@@ -187,6 +187,7 @@ class VideoDownLoad():
         except WebDriverException:
             pass
         except AttributeError:
+            print('exception')
             pass
 
     def findFileLink(self, movie_name, _season=0, _episode=0):
@@ -194,7 +195,7 @@ class VideoDownLoad():
             videoDownloadErrors.put('ERROR: Movie name field cannot be empty')
             raise
         else:
-            downloadCanceledCheck = Thread(target=self.checkSearchCancelled, args=())
+            downloadCanceledCheck = Thread(target=self.checkSearchCancelled, args=(), daemon=True)
             downloadCanceledCheck.start()
             searchMessage()
             movieName = movie_name
