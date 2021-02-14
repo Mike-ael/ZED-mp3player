@@ -80,7 +80,7 @@ class VideoDownLoad():
             try:
                 self.driver1.switch_to.window(self.driver1.window_handles[1])
                 self.driver1.get('https://google.com')
-                sleep(5)
+                sleep(10)
             except WebDriverException as error:
                 videoDownloadErrors.put(error)
                 break
@@ -193,7 +193,7 @@ class VideoDownLoad():
     def findFileLink(self, movie_name, _season=0, _episode=0):
         if movie_name == '':
             videoDownloadErrors.put('ERROR: Movie name field cannot be empty')
-            raise
+            raise BaseException
         else:
             downloadCanceledCheck = Thread(target=self.checkSearchCancelled, args=(), daemon=True)
             downloadCanceledCheck.start()

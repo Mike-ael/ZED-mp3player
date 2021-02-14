@@ -33,6 +33,8 @@ from netnaijaScraper import VideoDownLoad, videoDownloadCancelledFlag
 from netnaijaScraper import ElementClickInterceptedException, TimeoutException
 from netnaijaScraper import NoSuchElementException, WebDriverException, InvalidArgumentException
 from netnaijaScraper import videoDownloadErrors, videoDownloadNotification
+from tfpdlScraper import tfpdl_videoDownloadErrors, tfpdl_videoDownloadCancelledFlag
+from tfpdlScraper import tfpdl_videoDownloadNotification, TFPDLVideoDownload
 
 pygame.mixer.pre_init(44100, 16, 2, 1024 * 4)
 pygame.init()
@@ -428,6 +430,7 @@ class MusicPlayerGUI:
         self.musicDownloadList = Queue(maxsize=2)
         self.videoDownloadExecutor = ThreadPoolExecutor(max_workers=1)
         self.videoDownloadList = Queue(maxsize=2)
+        self.videoDownloadSite = Queue(maxsize=2)
         self.window.mainloop()
 
     #function on another thread called to load the songs from the ROM to a list before the Player starts
@@ -490,13 +493,13 @@ class MusicPlayerGUI:
             self.seasonQueue.put(self.season.get(), block=False)
             self.episodeQueue.put(self.episode.get(), block=False)
             if self.website.get() == 'Netnaija':
+                self.videoDownloadSite.put('N', block=False)
                 self.videoDownloadList.put(self.videoDownloadExecutor.submit(self.scrapeNetnaija), block = False)
             elif self.website.get() == 'TFPDL':
-                # self.videoDownloadList.append(self.videoDownloadExecutor.submit(self.scrapeTFPDL), block = False)
-                pass
+                self.videoDownloadSite.put('T', block=False)
+                self.videoDownloadList.put(self.videoDownloadExecutor.submit(self.scrapeTFPDL), block = False)
         except Full:
             tkinter.messagebox.showerror('Error Message', 'ERROR: Cant have more than one download(s) queued')
-
 
     def scrapeNetnaija(self):
         try:
@@ -534,15 +537,57 @@ class MusicPlayerGUI:
         finally:
             # delete task from queue
             self.videoDownloadList.get(block=False)
+            self.videoDownloadSite.get(block=False)
             while videoDownloadCancelledFlag.empty() == False:
                 _ = videoDownloadCancelledFlag.get(block=False)
             while videoDownloadErrors.empty() == False:
                 _ = videoDownloadErrors.get(block=False)
 
+    def scrapeTFPDL(self):
+        try:
+            self.tfpdlVideoDownload = TFPDLVideoDownload()
+            self.tfpdlVideoDownload.download(self.movieNameQueue.get(), self.seasonQueue.get(), self.episodeQueue.get())
+            if videoDownloadNotification.empty() == False:
+                downloadMessage()
+                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
+                while not tfpdl_videoDownloadNotification.empty():
+                    _ = tfpdl_videoDownloadNotification.get(block=False)
+        except IndexError:
+            tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        except FileNotFoundError:
+            tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        except AssertionError:
+            tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        except ElementClickInterceptedException:
+            tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        except InvalidArgumentException:
+            tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        except TimeoutException:
+            tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        except NoSuchElementException:
+            tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        except WebDriverException:
+                tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        except BaseException:
+            tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
+        finally:
+            # delete task from queue
+            self.videoDownloadList.get(block=False)
+            self.videoDownloadSite.get(block=False)
+            while tfpdl_videoDownloadCancelledFlag.empty() == False:
+                _ = tfpdl_videoDownloadCancelledFlag.get(block=False)
+            while tfpdl_videoDownloadErrors.empty() == False:
+                _ = tfpdl_videoDownloadErrors.get(block=False)
+
+
     def cancelDownload(self):
         try:
             if self.videoDownloadList.qsize() != 0:
-                videoDownloadCancelledFlag.put(True, block=False)
+                letter = self.videoDownloadSite.get(block=False)
+                if letter == 'N':
+                    videoDownloadCancelledFlag.put(True, block=False)
+                elif letter == 'T':
+                    tfpdl_videoDownloadCancelledFlag.put(True, block=False)
         except Full:
             tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
 
