@@ -91,11 +91,9 @@ class TFPDLVideoDownload():
             link3 = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".spoint")))
             #link3.click()
             action3.move_to_element(link3).click().perform()
-
             sleep(1.5)
             if 'safe.txt' not in driver.title:
                 self.moveToCorrectTab(driver, 'safe.txt')
-
             #send keys and submit form
             form: List = WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "form[method = 'post'] p input")))
             innerParagraphs = driver.find_elements_by_css_selector("form[method = 'post'] p")
@@ -109,7 +107,6 @@ class TFPDLVideoDownload():
                 form[1].click()
             fileLink = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href ^= 'https://firefiles']")))
             return fileLink
-
         except AssertionError as error:
             raise error
         except ElementClickInterceptedException as error:
@@ -149,36 +146,40 @@ class TFPDLVideoDownload():
             pyautogui.doubleClick()
         sleep(5)
 
-    def clickSecondDownloadButton(self, button: str):
+    def clickSecondDownloadButton(self):
         lenOfTabs = len(self.driver.window_handles)
         pyautogui.scroll(-200)
         sleep(2)
-        location = pyautogui.locateOnScreen(button)
-        if location == None:
-            print('Image not found on screen')
-        else:
-            print('found button')
-            pyautogui.doubleClick(location)
-            sleep(5)
-        if (self.driver.window_handles > lenOfTabs):
+        self.clickButtonPosition()
+        if (len(self.driver.window_handles) > lenOfTabs):
             self.driver.switch_to.window(self.driver.window_handles[0])
+            self.clickButtonPosition()
+        sleep(3)
 
-    def clickThirdDownloadButton(self, button: str):
+    def clickButtonPosition(self):
+        x: int = 799
+        for y in range(300, 700, 15):
+            pyautogui.moveTo(x, y)
+            if pyautogui.pixelMatchesColor(x, y, (100, 177, 38), tolerance= 5):
+                break
+        pyautogui.doubleClick()
+
+    def clickThirdDownloadButton(self):
+        lenOfTabs = len(self.driver.window_handles)
         pyautogui.scroll(-200)
         sleep(2)
-        location = pyautogui.locateOnScreen(button)
-        if location == None:
-            print('Image not found on screen')
-        else:
-            print('found button')
-            pyautogui.doubleClick(location)
-            sleep(5)
+        self.clickButtonPosition()
+        if (len(self.driver.window_handles) > lenOfTabs):
+            self.driver.switch_to.window(self.driver.window_handles[0])
+            self.clickButtonPosition()
 
     def checkDownloadCancelled(self):
-        while tfpdl_videoDownloadCancelledFlag.qsize() == 0 and tfpdl_videoDownloadErrors.qsize() == 0:
+        while tfpdl_videoDownloadCancelledFlag.qsize() == 0 and tfpdl_videoDownloadErrors.qsize() == 0 \
+                and not self.fileDownloaded:
             pass
         if tfpdl_videoDownloadCancelledFlag.qsize() == 1:
             tfpdl_videoDownloadErrors.put("Download cancelled", block=False)
+            raise BaseException
 
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
         found = False
@@ -194,20 +195,23 @@ class TFPDLVideoDownload():
                                 if file.endswith(extension):
                                     self.fileDownloaded = True
                                     return
-                        except FileNotFoundError:
+                        except FileNotFoundError as error:
                             tfpdl_videoDownloadErrors.put("FILE NOT FOUND", block=False)
+                            raise error
                         except BaseException as error:
                             tfpdl_videoDownloadErrors.put(error, block = False)
+                            raise error
 
     def connectionCheck(self):
+        self.driver.minimize_window()
         while self.fileDownloaded == False and tfpdl_videoDownloadErrors.qsize() == 0:
             try:
                 self.driver.switch_to.window(self.driver.window_handles[1])
                 self.driver.get('https://google.com')
                 sleep(10)
             except WebDriverException as error:
-                tfpdl_videoDownloadErrors.put(error)
-                break
+                tfpdl_videoDownloadErrors.put(error, block = False)
+                raise error
 
     def download(self, movieName: str, season: str = '', episode: str = ''):
         if movieName == '':
@@ -224,7 +228,6 @@ class TFPDLVideoDownload():
                 print(string)
                 self.driver = webdriver.Chrome(options=self.chromeOptions)
                 url = r'https://tfp.is/?s=' + movieName
-                self.driver.minimize_window()
                 self.driver.get(url)
                 self.driver.get_cookies()
                 movieLink = self.findMovieLink(self.driver, string)
@@ -240,19 +243,19 @@ class TFPDLVideoDownload():
                 self.driver.quit()
                 numberOfFilesInitially = len(os.listdir(self.downloadPath))
                 timeNow = datetime.datetime.now()
-                fileChecker = executor.submit(self.checkFilePresence, (numberOfFilesInitially, timeNow, '.mkv'))
+                fileChecker = executor.submit(self.checkFilePresence, numberOfFilesInitially, timeNow, '.mkv')
                 self.driver = webdriver.Chrome(options=self.chromeOptions1)
                 self.driver.get(downloadFileLink)
                 self.driver.maximize_window()
                 self.clickFirstDownloadButton(667, 539)
-                self.clickSecondDownloadButton("button2.png")
+                self.clickSecondDownloadButton()
+                self.clickThirdDownloadButton()
                 fileFoundMessage()
-                self.clickThirdDownloadButton("button1.png")
                 connectionChecker = executor.submit(self.connectionCheck)
-                self.driver.minimize_window()
-                for downloadResult in as_completed({downloadCancelCheck, fileChecker, connectionChecker}):
+                for downloadResult in as_completed([downloadCancelCheck, fileChecker, connectionChecker]):
                     downloadResult.result()
-
+                #if no errors were thrown in all three functions running in the ThreadPoolExecutor
+                tfpdl_videoDownloadNotification.put(True, block=False)
             except IndexError as error:
                 self.driver.quit()
                 tfpdl_videoDownloadErrors.put(error, block=False)

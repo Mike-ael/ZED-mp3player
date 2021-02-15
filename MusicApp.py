@@ -547,7 +547,7 @@ class MusicPlayerGUI:
         try:
             self.tfpdlVideoDownload = TFPDLVideoDownload()
             self.tfpdlVideoDownload.download(self.movieNameQueue.get(), self.seasonQueue.get(), self.episodeQueue.get())
-            if videoDownloadNotification.empty() == False:
+            if tfpdl_videoDownloadNotification.empty() == False:
                 downloadMessage()
                 tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                 while not tfpdl_videoDownloadNotification.empty():

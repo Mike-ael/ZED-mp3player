@@ -19,7 +19,6 @@ videoDownloadCancelledFlag = Queue(maxsize=1)
 videoDownloadErrors = Queue(maxsize=2)
 videoDownloadNotification = Queue(maxsize=2)
 
-
 class VideoDownLoad():
     def __init__(self):
         self.chromeOptions = Options()
@@ -54,8 +53,6 @@ class VideoDownLoad():
                             videoDownloadErrors.put("FILE NOT FOUND")
                         except BaseException as error:
                             videoDownloadErrors.put(error)
-
-
 
     def quitMp4Download(self):
         try:
@@ -169,10 +166,8 @@ class VideoDownLoad():
             self.driver1.quit()
             raise error
 
-
     def search(self, string, link):
         return string in link
-
 
     def checkSearchCancelled(self):
         while videoDownloadCancelledFlag.qsize() == 0 and self.downloadLinkSearchDone == False:
