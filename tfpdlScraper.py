@@ -40,6 +40,7 @@ class TFPDLVideoDownload():
         return str(num)
 
     def findMovieLink(self, driver, string):
+        self.foundLink: bool = False
         while True:
             try:
                 linksOnCurrentPage = WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, f'''{self.selector} div[class = 'post-listing '] article h2 a''')))
@@ -49,7 +50,10 @@ class TFPDLVideoDownload():
                     print(strLink)
                     if string in strLink and self.resolution in strLink and 'complete' not in strLink:
                         print(f'found link -> {strLink}')
+                        self.foundLink = True
                         return link
+                if string not in driver.title:
+                    driver.switch_to.window(driver.window_handles[0])
                 nextPage = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, f'''{self.selector} div[class = 'pagination'] span[id = 'tie-next-page'] a''')))
                 sleep(2)
                 nextPage.click()
@@ -59,10 +63,11 @@ class TFPDLVideoDownload():
                 raise error
             except NoSuchElementException as error:
                 raise error
-            except TimeoutException as error:
-                raise error
+            except TimeoutException:
+                raise TimeoutException("ERROR: scraper timeout because file link not found.")
             except WebDriverException as error:
                 raise error
+
 
     def getFileLink(self, driver):
         try:
@@ -257,6 +262,7 @@ class TFPDLVideoDownload():
                 #if no errors were thrown in all three functions running in the ThreadPoolExecutor
                 tfpdl_videoDownloadNotification.put(True, block=False)
             except IndexError as error:
+                print(-1)
                 self.driver.quit()
                 tfpdl_videoDownloadErrors.put(error, block=False)
                 raise error
