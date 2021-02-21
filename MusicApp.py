@@ -155,7 +155,7 @@ class MusicPlayerGUI:
         style.configure('TEntry', background="#000000")
         style.configure('TLabel', background="#000000", foreground='#00c8ff')
         style.configure('TCheckbutton', background = "#000000")
-        style.configure('TButton', background="#000000")
+        style.configure('TButton', background="#000000", foreground='#00c8ff')
         self.window.resizable(False, False)
         self.tabcontrol = ttk.Notebook(self.window)
         self.tabcontrol.bind('<Button-3>', self.postPlaylistDeletePopup)
@@ -231,12 +231,14 @@ class MusicPlayerGUI:
         ttk.Button(self.hifiButtonCanvas, image = pauseImage, command = self.pause).grid(row = 0, column = 5)
         ttk.Button(self.hifiButtonCanvas, image = nextImage, command = self.next).grid(row = 0, column = 6)
         self.volumeImageLabel = ttk.Label(self.hifiButtonCanvas, image = self.volumeImage)
-        self.volumeImageLabel.grid(row = 0, column = 7, padx = 20, pady = 10)
+        self.volumeImageLabel.grid(row = 0, column = 7, padx = 5, pady = 10)
         self.volumeLineCanvas = tk.Canvas(self.hifiButtonCanvas, bg = "#000000", width = 100, height = 10)
         self.volumeLineCanvas.grid(row = 0, column = 8)
         self.volumeLineCanvas.create_rectangle(0, 0, currentVolumeInPixel, 12, tags = 'rect', fill = '#00c8ff')
         self.volumeLineCanvas.bind('<Button-1>', self.changeVolume)
         self.volumeLineCanvas.bind('<Key>', self.changeVolume)
+        ttk.Button(self.hifiButtonCanvas, text = "Reload", command = lambda: Thread(target=self.updateSongList, args=[]).start()).\
+            grid(row= 0, column = 9, ipadx = 0, padx = 5)
         self.songFrame = tk.Frame(tab2, bg = "#000000")
         self.songFrame.pack()
         self.yScroll = ttk.Scrollbar(self.songFrame, orient=tk.VERTICAL)
@@ -1035,14 +1037,15 @@ file Location: {musicFilePathList[indexToShowProperties]}
     def setVolume(self, value):
         if value > 0:
             self.volumeImageLabel = ttk.Label(self.hifiButtonCanvas, image=self.volumeImage)
-            self.volumeImageLabel.grid(row=0, column=7, padx=20, pady=10)
+            self.volumeImageLabel.grid(row=0, column=7, padx=5, pady=10)
         if value == 0:
             self.volumeImageLabel = ttk.Label(self.hifiButtonCanvas, image=self.volumeOutImage)
-            self.volumeImageLabel.grid(row=0, column=7, pady = 10)
+            self.volumeImageLabel.grid(row=0, column=7, padx = 5, pady = 10)
         pygame.mixer.music.set_volume(value / 100)
         self.volumeLineCanvas.delete('rect')
         self.volumeLineCanvas.create_rectangle(0, 0, currentVolumeInPixel, 12, tags='rect', fill='#00c8ff')
         self.volumeLineCanvas.update()
+
     def doRegexSearch(self, songStr, song):
         songRegex = re.compile(songStr)
         return songRegex.search(song)
