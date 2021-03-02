@@ -5,3 +5,4 @@
 *.log 
 image manipulation.py
 __pycache__/
+venv

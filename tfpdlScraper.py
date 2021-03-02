@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import datetime
 import pyautogui
+from contextlib import suppress
 tfpdl_videoDownloadCancelledFlag = Queue(maxsize=1)
 tfpdl_videoDownloadErrors = Queue(maxsize=2)
 tfpdl_videoDownloadNotification = Queue(maxsize=2)
@@ -39,7 +40,7 @@ class TFPDLVideoDownload():
             return '0' + str(num)
         return str(num)
 
-    def findMovieLink(self, driver, string):
+    def findMovieLink(self, driver, string, checkStr):
         self.foundLink: bool = False
         while True:
             try:
@@ -51,12 +52,12 @@ class TFPDLVideoDownload():
                     if string in strLink and self.resolution in strLink and 'complete' not in strLink:
                         print(f'found link -> {strLink}')
                         self.foundLink = True
-                        return link
-                if string not in driver.title:
+                        return strLink
+                if not driver.title.startswith(checkStr):
                     driver.switch_to.window(driver.window_handles[0])
                 nextPage = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, f'''{self.selector} div[class = 'pagination'] span[id = 'tie-next-page'] a''')))
                 sleep(2)
-                nextPage.click()
+                driver.get(nextPage.get_attribute('href'))
             except IndexError as error:
                 raise error
             except ElementClickInterceptedException as error:
@@ -69,6 +70,7 @@ class TFPDLVideoDownload():
                 raise error
 
 
+
     def getFileLink(self, driver):
         try:
             for tab in driver.window_handles:
@@ -79,24 +81,19 @@ class TFPDLVideoDownload():
             #proceed for links
             print(driver.title)
             action1 = ActionChains(driver)
-            link1 = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, '''form[id = 'landing'] div[id = 'landing'] div[class = 'wait'] center img''')))
+            link1 = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '''form[id = 'landing'] div[id = 'landing'] div[class = 'wait'] center img''')))
             action1.move_to_element(link1).click().perform()
-            #link1.click()
-            #generate links
-            sleep(1.5)
+            sleep(5)
             print(driver.title)
             action2 = ActionChains(driver)
-            link2 = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[id = 'landing'] div[class = 'to'] a")))
+            link2 = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[id = 'landing'] div[class = 'to'] a")))
             action2.move_to_element(link2).click().perform()
-            #link2.click()
-            #view links
-            sleep(1.5)
+            sleep(5)
             print(driver.title)
             action3 = ActionChains(driver)
-            link3 = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".spoint")))
-            #link3.click()
+            link3 = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".spoint")))
             action3.move_to_element(link3).click().perform()
-            sleep(1.5)
+            sleep(5)
             if 'safe.txt' not in driver.title:
                 self.moveToCorrectTab(driver, 'safe.txt')
             #send keys and submit form
@@ -188,31 +185,28 @@ class TFPDLVideoDownload():
 
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
         found = False
-        while not found and tfpdl_videoDownloadErrors.qsize() == 0:
-            numberOfFilesNow = len(os.listdir(self.downloadPath))
-            if numberOfFilesNow > numberOfFilesInitially:
-                for folders, subfolders, files in os.walk(self.downloadPath):
-                    for file in files:
-                        try:
+        with suppress(FileNotFoundError, BaseException):
+            while not found and tfpdl_videoDownloadErrors.qsize() == 0:
+                numberOfFilesNow = len(os.listdir(self.downloadPath))
+                if numberOfFilesNow > numberOfFilesInitially:
+                    for folders, subfolders, files in os.walk(self.downloadPath):
+                        for file in files:
                             creationTime = datetime.datetime.fromtimestamp(
                                 os.path.getctime(os.path.join(folders, file)))
                             if creationTime > timeNow:
                                 if file.endswith(extension):
                                     self.fileDownloaded = True
                                     return
-                        except FileNotFoundError as error:
-                            tfpdl_videoDownloadErrors.put("FILE NOT FOUND", block=False)
-                            raise error
-                        except BaseException as error:
-                            tfpdl_videoDownloadErrors.put(error, block = False)
-                            raise error
 
     def connectionCheck(self):
+        self.driver.switch_to.window(self.driver.window_handles[1])
+        self.driver.get('https://google.com')
         self.driver.minimize_window()
         while self.fileDownloaded == False and tfpdl_videoDownloadErrors.qsize() == 0:
             try:
-                self.driver.switch_to.window(self.driver.window_handles[1])
-                self.driver.get('https://google.com')
+                self.driver.refresh()
+                #self.driver.switch_to.window(self.driver.window_handles[1])
+                #self.driver.get('https://google.com')
                 sleep(10)
             except WebDriverException as error:
                 tfpdl_videoDownloadErrors.put(error, block = False)
@@ -235,9 +229,9 @@ class TFPDLVideoDownload():
                 url = r'https://tfp.is/?s=' + movieName
                 self.driver.get(url)
                 self.driver.get_cookies()
-                movieLink = self.findMovieLink(self.driver, string)
+                movieLink = self.findMovieLink(self.driver, string, "tfp.is")
                 sleep(1)
-                movieLink.click()
+                self.driver.get(movieLink)
                 downloadButton = WebDriverWait(self.driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, f'''{self.selector} article \
                                         div[class = 'post-inner'] div[class = 'entry'] a[href ^= 'https://www.tfp.is']''')))
                 print(downloadButton.get_attribute("href"))

@@ -237,7 +237,7 @@ class MusicPlayerGUI:
         self.volumeLineCanvas.create_rectangle(0, 0, currentVolumeInPixel, 12, tags = 'rect', fill = '#00c8ff')
         self.volumeLineCanvas.bind('<Button-1>', self.changeVolume)
         self.volumeLineCanvas.bind('<Key>', self.changeVolume)
-        ttk.Button(self.hifiButtonCanvas, text = "Reload", command = lambda: Thread(target=self.updateSongList, args=[]).start()).\
+        ttk.Button(self.hifiButtonCanvas, text = "Reload", command = lambda: Thread(target=self.updateSongList, args=[], daemon=True).start()).\
             grid(row= 0, column = 9, ipadx = 0, padx = 5)
         self.songFrame = tk.Frame(tab2, bg = "#000000")
         self.songFrame.pack()
