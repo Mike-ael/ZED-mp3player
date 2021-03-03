@@ -27,7 +27,8 @@ class MusicDownload():
         self.fileDownloaded = False
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension, artistName, songTitle):
         found = False
-        isFile = lambda file, name, title: name.title() in file and title.title() in file
+        isFile = lambda music_file, name, title: name.lower() in music_file.lower() or title.lower() \
+                                                 in music_file.lower()
         while not found and musicDownloadErrors.qsize() == 0:
             numberOfFilesNow = len(os.listdir(self.path))
             if numberOfFilesNow > numberOfFilesInitially:
@@ -35,7 +36,8 @@ class MusicDownload():
                     for file in files:
                         try:
                             if isFile(file, artistName, songTitle):
-                                creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
+                                creationTime = datetime.datetime.fromtimestamp(os.path.getctime(
+                                    os.path.join(folders, file)))
                                 if creationTime > timeNow:
                                     if file.endswith(extension):
                                         found = True
@@ -67,8 +69,10 @@ class MusicDownload():
 
 
     def findSongInText(self, textElement, artistName: str, songTitle: str):
-        artistName, songTitle = artistName.title(), songTitle.title()
-        return True if artistName in textElement.text and songTitle in textElement.text else False
+        artistName = artistName.lower()
+        songTitle = songTitle.lower()
+        return True if artistName in str(textElement.text).lower() and \
+                       songTitle in str(textElement.text).lower() else False
 
     def connectionCheck(self):
         while self.fileDownloaded == False:

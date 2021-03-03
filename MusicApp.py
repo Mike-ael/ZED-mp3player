@@ -810,7 +810,7 @@ class MusicPlayerGUI:
                 for elem in musicFilenameList:
                     self.listBox.insert(tk.END, elem)
                 self.checkAndUpdatePlaylists(indexToDelete)
-                self.properties.loadProperties()
+                self.properties.loadProperties(musicFilePathList)
             except PermissionError as error:
                 tkinter.messagebox.showerror('<Delete Error>', error)
         else:
