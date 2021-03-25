@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import tkinter as tk
 import tkinter.messagebox
 import tkinter.simpledialog
-from mutagen.mp3 import MP3, MutagenError
+from mutagen.mp3 import MP3, MutagenError, HeaderNotFoundError
 import pygame
 from tkinter import ttk
 from SearchForSongs import searchForSongs, update, musicFilePathList, musicFilenameList
@@ -891,23 +891,24 @@ class MusicPlayerGUI:
         file.close()
 
     def showProperties(self):
-        global popupON
-        popupON = False
-        self.listBox.selection_clear(0, tk.END)
-        self.listBox.selection_set(self.listBox.nearest(yposition))
-        indexToShowProperties = self.listBox.curselection()[0]
-        length = MP3(musicFilePathList[indexToShowProperties]).info.length
-        length = round(length)
-        minutes = length // 60
-        seconds = length % 60
-        minutesInString = str(minutes)
-        secondsInString = str(seconds)
-        if minutes < 10:
-            minutesInString = '0' + str(minutes)
-        if seconds < 10:
-            secondsInString = '0' + str(seconds)
-        time = minutesInString + ':' + secondsInString
-        tkinter.messagebox.showinfo('<File Properties>',f'''
+        try:
+            global popupON
+            popupON = False
+            self.listBox.selection_clear(0, tk.END)
+            self.listBox.selection_set(self.listBox.nearest(yposition))
+            indexToShowProperties = self.listBox.curselection()[0]
+            length = MP3(musicFilePathList[indexToShowProperties]).info.length
+            length = round(length)
+            minutes = length // 60
+            seconds = length % 60
+            minutesInString = str(minutes)
+            secondsInString = str(seconds)
+            if minutes < 10:
+                minutesInString = '0' + str(minutes)
+            if seconds < 10:
+                secondsInString = '0' + str(seconds)
+            time = minutesInString + ':' + secondsInString
+            tkinter.messagebox.showinfo('<File Properties>', f'''
 Song title: {self.properties.songNameList[indexToShowProperties]}
 Artist: {self.properties.artistList[indexToShowProperties]}
 Genre:  {self.properties.genreList[indexToShowProperties]}
@@ -916,27 +917,32 @@ Length: {time}
 Year: {self.properties.songYear[indexToShowProperties]}
 file Location: {musicFilePathList[indexToShowProperties]}
 ''')
+        except HeaderNotFoundError as error:
+            tkinter.messagebox.showerror('Error Message', f"Error encountered trying to read mp3 file\n{error}")
+        except MutagenError as error:
+            tkinter.messagebox.showerror('Error Message', f"Error encountered trying to read mp3 file\n{error}")
 
     def showSearchedSongProperties(self):
-        global popupON
-        popupON = False
-        self.searchlistBox.selection_clear(0, tk.END)
-        self.searchlistBox.selection_set(self.searchlistBox.nearest(yposition))
-        indexToShowProperties = self.searchlistBox.curselection()[0]
-        fileToShowProperties = self.list[indexToShowProperties]
-        indexToShowProperties = musicFilenameList.index(fileToShowProperties)
-        length = MP3(musicFilePathList[indexToShowProperties]).info.length
-        length = round(length)
-        minutes = length // 60
-        seconds = length % 60
-        minutesInString = str(minutes)
-        secondsInString = str(seconds)
-        if minutes < 10:
-            minutesInString = '0' + str(minutes)
-        if seconds < 10:
-            secondsInString = '0' + str(seconds)
-        time = minutesInString + ':' + secondsInString
-        tkinter.messagebox.showinfo('<File Properties>',f'''
+        try:
+            global popupON
+            popupON = False
+            self.searchlistBox.selection_clear(0, tk.END)
+            self.searchlistBox.selection_set(self.searchlistBox.nearest(yposition))
+            indexToShowProperties = self.searchlistBox.curselection()[0]
+            fileToShowProperties = self.list[indexToShowProperties]
+            indexToShowProperties = musicFilenameList.index(fileToShowProperties)
+            length = MP3(musicFilePathList[indexToShowProperties]).info.length
+            length = round(length)
+            minutes = length // 60
+            seconds = length % 60
+            minutesInString = str(minutes)
+            secondsInString = str(seconds)
+            if minutes < 10:
+                minutesInString = '0' + str(minutes)
+            if seconds < 10:
+                secondsInString = '0' + str(seconds)
+            time = minutesInString + ':' + secondsInString
+            tkinter.messagebox.showinfo('<File Properties>',f'''
 title: {self.properties.songNameList[indexToShowProperties]}
 Artist: {self.properties.artistList[indexToShowProperties]}
 Genre: {self.properties.genreList[indexToShowProperties]}
@@ -945,6 +951,10 @@ Length: {time}
 Year: {self.properties.songYear[indexToShowProperties]}
 file Location: {musicFilePathList[indexToShowProperties]}
 ''')
+        except HeaderNotFoundError as error:
+            tkinter.messagebox.showerror('Error Message', f"Error encountered trying to read mp3 file\n{error}")
+        except MutagenError as error:
+            tkinter.messagebox.showerror('Error Message', f"Error encountered trying to read mp3 file\n{error}")
 
     def showPlaylistProperty(self):
         global popupON
