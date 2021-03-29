@@ -128,52 +128,33 @@ class TFPDLVideoDownload():
             if expectedTitle in driver.title:
                 break
 
-    def clickFirstDownloadButton(self,xPosition=0, yPosition=0):
-        tabsNum = len(self.driver.window_handles)
-        pyautogui.scroll(-100)
-        sleep(2)
-        pyautogui.moveTo(xPosition, yPosition)
-        sleep(2)
-        pyautogui.doubleClick()
-        if len(self.driver.window_handles) > tabsNum:
-            print('got here')
-            sleep(2)
-            self.driver.switch_to.window(self.driver.window_handles[0])
-            print('switched back to first window')
-            sleep(2)
-            pyautogui.scroll(-100)
-            sleep(2)
-            pyautogui.moveTo(xPosition, yPosition)
-            sleep(2)
-            pyautogui.doubleClick()
-        sleep(5)
-
-    def clickSecondDownloadButton(self):
-        lenOfTabs = len(self.driver.window_handles)
-        pyautogui.scroll(-200)
-        sleep(2)
-        self.clickButtonPosition()
-        if (len(self.driver.window_handles) > lenOfTabs):
-            self.driver.switch_to.window(self.driver.window_handles[0])
-            self.clickButtonPosition()
-        sleep(3)
-
-    def clickButtonPosition(self):
-        x: int = 799
+    def clickButtonPosition(self, xPosition, *color):
+        x: int = xPosition
         for y in range(300, 700, 15):
             pyautogui.moveTo(x, y)
-            if pyautogui.pixelMatchesColor(x, y, (100, 177, 38), tolerance= 5):
+            if pyautogui.pixelMatchesColor(x, y, color, tolerance= 5):
                 break
         pyautogui.doubleClick()
 
-    def clickThirdDownloadButton(self):
+    def clickBlueDownloadButton(self):
         lenOfTabs = len(self.driver.window_handles)
         pyautogui.scroll(-200)
         sleep(2)
-        self.clickButtonPosition()
+        self.clickButtonPosition(666, 56, 131, 173)
         if (len(self.driver.window_handles) > lenOfTabs):
             self.driver.switch_to.window(self.driver.window_handles[0])
-            self.clickButtonPosition()
+            self.clickButtonPosition(666, 56, 131, 173)
+        sleep(3)
+
+    def clickGreenDownloadButton(self):
+        lenOfTabs = len(self.driver.window_handles)
+        pyautogui.scroll(-200)
+        sleep(2)
+        self.clickButtonPosition(799, 100, 177, 38)
+        if (len(self.driver.window_handles) > lenOfTabs):
+            self.driver.switch_to.window(self.driver.window_handles[0])
+            self.clickButtonPosition(799, 100, 177, 38)
+        sleep(3)
 
     def checkDownloadCancelled(self):
         while tfpdl_videoDownloadCancelledFlag.qsize() == 0 and tfpdl_videoDownloadErrors.qsize() == 0 \
@@ -246,9 +227,9 @@ class TFPDLVideoDownload():
                 self.driver = webdriver.Chrome(options=self.chromeOptions1)
                 self.driver.get(downloadFileLink)
                 self.driver.maximize_window()
-                self.clickFirstDownloadButton(667, 539)
-                self.clickSecondDownloadButton()
-                self.clickThirdDownloadButton()
+                self.clickBlueDownloadButton()
+                self.clickGreenDownloadButton()
+                self.clickGreenDownloadButton()
                 fileFoundMessage()
                 connectionChecker = executor.submit(self.connectionCheck)
                 for downloadResult in as_completed([downloadCancelCheck, fileChecker, connectionChecker]):
