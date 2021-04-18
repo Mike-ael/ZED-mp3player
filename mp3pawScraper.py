@@ -27,8 +27,8 @@ class MusicDownload():
         self.fileDownloaded = False
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension, artistName, songTitle):
         found = False
-        isFile = lambda music_file, name, title: name.lower() in music_file.lower() or title.lower() \
-                                                 in music_file.lower()
+        isFile = lambda music_file, name, title: name.lower() in music_file.lower() or \
+                                                 title.lower() in music_file.lower()
         while not found and musicDownloadErrors.qsize() == 0:
             numberOfFilesNow = len(os.listdir(self.path))
             if numberOfFilesNow > numberOfFilesInitially:
@@ -83,6 +83,17 @@ class MusicDownload():
                 musicDownloadErrors.put(error)
                 break
 
+    def checkAndCorrectNewTab(self, numberOfTabs, button):
+        """
+        function to switch to the correct tab if a new tab was created by the browswer.
+        :param numberOfTabs:
+        :param button:
+        :return:
+        """
+        if (numberOfTabs < len(self.driver.window_handles)):
+            self.driver.switch_to.window(self.driver.window_handles[0])
+            button.click()
+
     def mp3pawscraper(self, artistName, songTitle):
         if artistName == '' or songTitle == '':
             musicDownloadErrors.put("ERROR: fields cannot be empty")
@@ -108,52 +119,54 @@ class MusicDownload():
                 searchElem.send_keys(Keys.ENTER)
                 elementTextList = self.driver.find_elements_by_css_selector("div[class='mp3-head'] h3")
                 index: int = 0
-                downloadElem = None
-                fileFound: bool = False
                 for text in elementTextList:
                     if self.findSongInText(text, artistName, songTitle):
                         downloadElem = self.driver.find_elements_by_css_selector('li[class="mp3dl"]')[index]
-                        fileFound = True
-                        break
-                    index += 1
-                if fileFound:
-                    downloadElem.click()
-                    time.sleep(3)
-                    windows = self.driver.window_handles
-                    self.driver.switch_to.window(windows[1])
-                    self.driver.get_cookies()
-                    buttons = self.driver.find_elements_by_css_selector('ul > li')
-                    fileChecker = Thread(target=self.checkFilePresence, args=(numberOfFilesInitially, timeNow, '.mp3', songTitle, artistName))
-                    fileChecker.start()
-                    params = {'behavior': 'allow', 'downloadPath': self.path}
-                    self.driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
-                    for i in range(5):
-                        buttons[7].click()
+                        numberOfTabs: int = len(self.driver.window_handles)
+                        downloadElem.click()
+                        self.checkAndCorrectNewTab(numberOfTabs=numberOfTabs, button=downloadElem)
+                        self.driver.get_cookies()
+                        time.sleep(2)
+                        fileChecker = Thread(target=self.checkFilePresence,
+                                             args=(numberOfFilesInitially, timeNow, '.mp3', songTitle, artistName))
+                        fileChecker.start()
+                        self.driver.switch_to.window(self.driver.window_handles[2])
+                        time.sleep(3)
+                        buttons = self.driver.find_elements_by_css_selector('ul > li')
+                        params = {'behavior': 'allow', 'downloadPath': self.path}
+                        self.driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
+                        for i in range(5):
+                            buttons[7].click()
+                            time.sleep(i)
+                            break
                         time.sleep(1)
-                        break
-                    connectionChecker = Thread(target = self.connectionCheck, args = [])
-                    connectionChecker.start()
-                    if musicDownloadCancelledFlag.qsize() == 0:
-                        fileFoundMessage()
-                    fileChecker.join()
-                    self.fileDownloaded = True
-                    #if download was not cancelled and no filesystem error
-                    if musicDownloadErrors.qsize() == 0:
-                        musicDownloadNotification.put(True, block=False)
-                        downloadCanceledCheck.join()
-                        connectionChecker.join()
-                        self.driver.quit()
-                    elif musicDownloadCancelledFlag.qsize() == 1:
-                        downloadCanceledCheck.join()
-                        connectionChecker.join()
-                        raise BaseException
-                    elif musicDownloadCancelledFlag.qsize() == 0 and musicDownloadErrors.qsize() > 0:
-                        musicDownloadCancelledFlag.put(False, block = False)
-                        downloadCanceledCheck.join()
-                        connectionChecker.join()
-                        raise BaseException
-                else:
-                    raise FileNotFoundError
+                        connectionChecker = Thread(target=self.connectionCheck, args=[])
+                        connectionChecker.start()
+                        if musicDownloadCancelledFlag.qsize() == 0:
+                            fileFoundMessage()
+                        fileChecker.join()
+                        self.fileDownloaded = True
+                        # if download was not cancelled and no filesystem error
+                        if musicDownloadErrors.qsize() == 0:
+                            musicDownloadNotification.put(True, block=False)
+                            downloadCanceledCheck.join()
+                            connectionChecker.join()
+                            self.driver.quit()
+                        elif musicDownloadCancelledFlag.qsize() == 1:
+                            downloadCanceledCheck.join()
+                            connectionChecker.join()
+                            raise BaseException
+                        elif musicDownloadCancelledFlag.qsize() == 0 and musicDownloadErrors.qsize() > 0:
+                            musicDownloadCancelledFlag.put(False, block=False)
+                            downloadCanceledCheck.join()
+                            connectionChecker.join()
+                            raise BaseException
+                        break #break out of for loop
+                    index += 1
+                    if index == len(elementTextList) - 1:
+                        raise FileNotFoundError
+                #end for loop
+
             except ElementClickInterceptedException as error:
                 musicDownloadErrors.put(error, block=False)
                 self.driver.quit()
