@@ -23,7 +23,7 @@ class VideoDownLoad():
     def __init__(self):
         self.chromeOptions = Options()
         self.chromeOptions.add_argument('--disable-notifications')
-        self.chromeOptions.add_argument('--headless')
+        #self.chromeOptions.add_argument('--headless')
         self.driver = None
         self.driver1 = None
         self.driver2 = None
