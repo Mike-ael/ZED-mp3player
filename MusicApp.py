@@ -24,7 +24,7 @@ import os
 from queue import Queue, Empty, Full
 from loadMusicProperties import Properties
 from mutagen.id3 import ID3
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from io import BytesIO
 from voicemessages import downloadMessage
 from mp3pawScraper import MusicDownload, musicDownloadErrors, musicDownloadNotification
@@ -1595,12 +1595,16 @@ file Location: {musicFilePathList[indexToShowProperties]}
             im = im.resize((350, 300))
             im.save("music_art.gif")
             self.subwooferImage = tk.PhotoImage(file=subwooverImageString2)
+        except UnidentifiedImageError:
+            self.subwooferImage = tk.PhotoImage(file=subwooverImageString1)
+            pass
         except AttributeError:
             self.subwooferImage = tk.PhotoImage(file=subwooverImageString1)
-            self.subWooferCanvas.create_image(525, 160, image=self.subwooferImage)
         except IndexError:
+            self.subwooferImage = tk.PhotoImage(file=subwooverImageString1)
             pass
         except MutagenError:
+            self.subwooferImage = tk.PhotoImage(file=subwooverImageString1)
             pass
         if currentEvent == play:
             try:
