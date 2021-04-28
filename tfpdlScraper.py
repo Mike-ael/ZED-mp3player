@@ -130,7 +130,7 @@ class TFPDLVideoDownload():
 
     def clickButtonPosition(self, xPosition, *color):
         x: int = xPosition
-        for y in range(300, 700, 15):
+        for y in range(100, 700, 15):
             pyautogui.moveTo(x, y)
             if pyautogui.pixelMatchesColor(x, y, color, tolerance= 5):
                 break
