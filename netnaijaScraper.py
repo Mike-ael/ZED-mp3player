@@ -74,11 +74,11 @@ class VideoDownLoad():
 
     def connectionCheck(self):
         self.driver1.switch_to.window(self.driver1.window_handles[1])
-        self.driver.get('https://google.com')
-        self.driver.minimize_window()
+        self.driver1.get('https://google.com')
+        self.driver1.minimize_window()
         while self.fileDownloaded == False:
             try:
-                self.driver1.reresh()
+                self.driver1.refresh()
                 sleep(10)
             except WebDriverException as error:
                 videoDownloadErrors.put(error)
@@ -86,24 +86,25 @@ class VideoDownLoad():
 
     def startSRTDownload(self, link):
         try:
-            numberOfFilesInitially = len(os.listdir(self.downloadPath))
-            timeNow = datetime.datetime.now()
-            fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.srt'])
-            fileChecker.start()
-            self.driver2 = webdriver.Chrome(options=self.chromeOptions)
-            self.driver2.get(link)
-            self.headlessDownloadRequirement(self.driver2)
-            downloadButton = self.driver2.find_element_by_css_selector(
-                """div[id = 'action-buttons'] button""")
-            downloadButton.click()
-            fileChecker.join()
-            if videoDownloadErrors.qsize() == 0:
-                videoDownloadNotification.put(True, block = False)
-                self.driver2.quit()
-            elif videoDownloadCancelledFlag.qsize() == 1:
-                raise BaseException
-            elif videoDownloadErrors.qsize() > 0:
-                raise BaseException
+            if link != None:
+                numberOfFilesInitially = len(os.listdir(self.downloadPath))
+                timeNow = datetime.datetime.now()
+                fileChecker = Thread(target=self.checkFilePresence, args=[numberOfFilesInitially, timeNow, r'.srt'])
+                fileChecker.start()
+                self.driver2 = webdriver.Chrome(options=self.chromeOptions)
+                self.driver2.get(link)
+                self.headlessDownloadRequirement(self.driver2)
+                downloadButton = self.driver2.find_element_by_css_selector(
+                    """div[id = 'action-buttons'] button""")
+                downloadButton.click()
+                fileChecker.join()
+                if videoDownloadErrors.qsize() == 0:
+                    videoDownloadNotification.put(True, block = False)
+                    self.driver2.quit()
+                elif videoDownloadCancelledFlag.qsize() == 1:
+                    raise BaseException
+                elif videoDownloadErrors.qsize() > 0:
+                    raise BaseException
         except NoSuchElementException as error:
             videoDownloadErrors.put(error, block=False)
             self.driver2.quit()
@@ -262,8 +263,11 @@ class VideoDownLoad():
                     print(len(downloadLinks))
                     for elem in downloadLinks:
                         print(elem.get_attribute('href'))
-                    self.mp4Link = downloadLinks[0].get_attribute('href')
-                    self.srtLink = downloadLinks[1].get_attribute('href')
+                    if len(downloadLinks) == 1:
+                        self.mp4Link = downloadLinks[0].get_attribute('href')
+                    elif len(downloadLinks) == 2:
+                        self.mp4Link = downloadLinks[0].get_attribute('href')
+                        self.srtLink = downloadLinks[1].get_attribute('href')
             except IndexError as error:
                 self.driver.quit()
                 videoDownloadErrors.put(error, block=False)
