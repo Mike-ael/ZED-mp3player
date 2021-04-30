@@ -73,10 +73,12 @@ class VideoDownLoad():
                 self.quitMp4Download()
 
     def connectionCheck(self):
+        self.driver1.switch_to.window(self.driver1.window_handles[1])
+        self.driver.get('https://google.com')
+        self.driver.minimize_window()
         while self.fileDownloaded == False:
             try:
-                self.driver1.switch_to.window(self.driver1.window_handles[1])
-                self.driver1.get('https://google.com')
+                self.driver1.reresh()
                 sleep(10)
             except WebDriverException as error:
                 videoDownloadErrors.put(error)
@@ -256,7 +258,7 @@ class VideoDownLoad():
                     raise FileNotFoundError()
                 else:
                     downloadLinks = WebDriverWait(self.driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '''
-                    div[class = 'download-block'] div[class = 'db-one'] ''' )))
+                    div[class = 'download-block'] div[class = 'db-one'] a''')))
                     print(len(downloadLinks))
                     for elem in downloadLinks:
                         print(elem.get_attribute('href'))

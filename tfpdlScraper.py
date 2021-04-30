@@ -186,8 +186,6 @@ class TFPDLVideoDownload():
         while self.fileDownloaded == False and tfpdl_videoDownloadErrors.qsize() == 0:
             try:
                 self.driver.refresh()
-                #self.driver.switch_to.window(self.driver.window_handles[1])
-                #self.driver.get('https://google.com')
                 sleep(10)
             except WebDriverException as error:
                 tfpdl_videoDownloadErrors.put(error, block = False)

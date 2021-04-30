@@ -592,6 +592,8 @@ class MusicPlayerGUI:
                     tfpdl_videoDownloadCancelledFlag.put(True, block=False)
         except Full:
             tkinter.messagebox.showerror('Error Message:', 'ERROR: No download is ongoing')
+        except Empty:
+            pass
 
     def updateSongList(self):
         sleep(12)
