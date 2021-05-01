@@ -14,6 +14,7 @@ import os
 import datetime
 from threading import Thread
 from typing import List
+from contextlib import suppress
 from voicemessages import fileFoundMessage, searchMessage
 videoDownloadCancelledFlag = Queue(maxsize=1)
 videoDownloadErrors = Queue(maxsize=2)
@@ -38,21 +39,18 @@ class VideoDownLoad():
         driver.execute_cdp_cmd('Page.setDownloadBehavior', params)
 
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
-        found = False
-        while not found and videoDownloadErrors.qsize() == 0:
-            numberOfFilesNow = len(os.listdir(self.downloadPath))
-            if numberOfFilesNow > numberOfFilesInitially:
-                for folders, subfolders, files in os.walk(self.downloadPath):
-                    for file in files:
-                        try:
+        with suppress(FileNotFoundError, BaseException):
+            while videoDownloadErrors.qsize() == 0:
+                numberOfFilesNow = len(os.listdir(self.downloadPath))
+                if numberOfFilesNow > numberOfFilesInitially:
+                    for folders, subfolders, files in os.walk(self.downloadPath):
+                        for file in files:
                             creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
                             if creationTime > timeNow:
                                 if file.endswith(extension):
+                                    if extension == '.mp4':
+                                        self.fileDownloaded = True
                                     return
-                        except FileNotFoundError:
-                            videoDownloadErrors.put("FILE NOT FOUND")
-                        except BaseException as error:
-                            videoDownloadErrors.put(error)
 
     def quitMp4Download(self):
         try:
@@ -138,7 +136,6 @@ class VideoDownLoad():
             connectionChecker = Thread(target = self.connectionCheck, args = [])
             connectionChecker.start()
             fileChecker.join()
-            self.fileDownloaded = True
             if videoDownloadErrors.qsize() == 0:
                 videoDownloadNotification.put(True, block = False)
                 downloadCancelCheck.join()

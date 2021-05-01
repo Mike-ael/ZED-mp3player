@@ -165,9 +165,8 @@ class TFPDLVideoDownload():
             raise BaseException
 
     def checkFilePresence(self, numberOfFilesInitially, timeNow, extension):
-        found = False
         with suppress(FileNotFoundError, BaseException):
-            while not found and tfpdl_videoDownloadErrors.qsize() == 0:
+            while tfpdl_videoDownloadErrors.qsize() == 0:
                 numberOfFilesNow = len(os.listdir(self.downloadPath))
                 if numberOfFilesNow > numberOfFilesInitially:
                     for folders, subfolders, files in os.walk(self.downloadPath):
