@@ -45,10 +45,11 @@ class VideoDownLoad():
                 if numberOfFilesNow > numberOfFilesInitially:
                     for folders, subfolders, files in os.walk(self.downloadPath):
                         for file in files:
-                            creationTime = datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(folders, file)))
+                            creationTime = datetime.datetime.fromtimestamp(
+                                os.path.getctime(os.path.join(folders, file)))
                             if creationTime > timeNow:
                                 if file.endswith(extension):
-                                    if extension == '.mp4':
+                                    if file.endswith('.mp4'):
                                         self.fileDownloaded = True
                                     return
 
@@ -64,9 +65,8 @@ class VideoDownLoad():
         while videoDownloadCancelledFlag.qsize() == 0 and self.fileDownloaded == False:
             pass
         if not self.fileDownloaded:
-            cancelled = videoDownloadCancelledFlag.get(block=False)
-            print(cancelled)
-            if cancelled:
+            if cancelled := videoDownloadCancelledFlag.get(block=False):
+                print(cancelled)
                 videoDownloadCancelledFlag.put(True, block=False)
                 self.quitMp4Download()
 

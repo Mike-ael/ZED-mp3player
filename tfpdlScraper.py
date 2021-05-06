@@ -136,29 +136,19 @@ class TFPDLVideoDownload():
                 break
         pyautogui.doubleClick()
 
-    def clickBlueDownloadButton(self):
+    def clickDownloadButton(self, x_pos, r_color, g_color, b_color):
         lenOfTabs = len(self.driver.window_handles)
         pyautogui.scroll(-200)
         sleep(2)
-        self.clickButtonPosition(666, 56, 131, 173)
+        self.clickButtonPosition(x_pos, r_color, g_color, b_color)
         if (len(self.driver.window_handles) > lenOfTabs):
             self.driver.switch_to.window(self.driver.window_handles[0])
-            self.clickButtonPosition(666, 56, 131, 173)
-        sleep(3)
-
-    def clickGreenDownloadButton(self):
-        lenOfTabs = len(self.driver.window_handles)
-        pyautogui.scroll(-200)
-        sleep(2)
-        self.clickButtonPosition(799, 100, 177, 38)
-        if (len(self.driver.window_handles) > lenOfTabs):
-            self.driver.switch_to.window(self.driver.window_handles[0])
-            self.clickButtonPosition(799, 100, 177, 38)
-        sleep(3)
+            self.clickButtonPosition(x_pos, r_color, g_color, b_color)
+        sleep(5)
 
     def checkDownloadCancelled(self):
         while tfpdl_videoDownloadCancelledFlag.qsize() == 0 and tfpdl_videoDownloadErrors.qsize() == 0 \
-                and not self.fileDownloaded:
+                and self.fileDownloaded == False:
             pass
         if tfpdl_videoDownloadCancelledFlag.qsize() == 1:
             tfpdl_videoDownloadErrors.put("Download cancelled", block=False)
@@ -224,9 +214,9 @@ class TFPDLVideoDownload():
                 self.driver = webdriver.Chrome(options=self.chromeOptions1)
                 self.driver.get(downloadFileLink)
                 self.driver.maximize_window()
-                self.clickBlueDownloadButton()
-                self.clickGreenDownloadButton()
-                self.clickGreenDownloadButton()
+                self.clickDownloadButton(666, 56, 131, 173)
+                self.clickDownloadButton(799, 100, 177, 38)
+                self.clickDownloadButton(799, 100, 177, 38)
                 fileFoundMessage()
                 connectionChecker = executor.submit(self.connectionCheck)
                 for downloadResult in as_completed([downloadCancelCheck, fileChecker, connectionChecker]):
@@ -234,7 +224,6 @@ class TFPDLVideoDownload():
                 #if no errors were thrown in all three functions running in the ThreadPoolExecutor
                 tfpdl_videoDownloadNotification.put(True, block=False)
             except IndexError as error:
-                print(-1)
                 self.driver.quit()
                 tfpdl_videoDownloadErrors.put(error, block=False)
                 raise error
