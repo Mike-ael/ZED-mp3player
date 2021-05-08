@@ -5,8 +5,10 @@
 #include <mutex>
 #include <vector>
 #include <fstream>
+#include <span>
 #include <thread>
 #include <algorithm>
+#include <ranges>
 namespace fs = std::filesystem;
 class sharedResource {
 public:
@@ -14,10 +16,8 @@ public:
 		outputFile1.open(path1, std::ios_base::out);	
 		outputFile2.open(path2, std::ios_base::out);
 	}
-	void write(std::vector<std::string> vecStr1, std::vector<std::string> vecStr2) {
+	void write(std::span<std::string> vecStr1, std::span<std::string> vecStr2) {
 		std::lock_guard<std::mutex> guard(mut);
-		//std::sort(std::begin(vecStr1), std::end(vecStr1));
-		//std::sort(std::begin(vecStr2), std::end(vecStr2));
 		if (outputFile1.is_open() && outputFile2.is_open()) {
 			auto [outputPath, outputFilename] = std::pair(std::ostream_iterator<std::string>(outputFile1), std::ostream_iterator<std::string>(outputFile2));
 			std::copy(std::cbegin(vecStr2), std::cend(vecStr2), outputPath);
