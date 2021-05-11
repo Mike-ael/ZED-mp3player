@@ -20,8 +20,8 @@ public:
 		std::lock_guard<std::mutex> guard(mut);
 		if (outputFile1.is_open() && outputFile2.is_open()) {
 			auto [outputPath, outputFilename] = std::pair(std::ostream_iterator<std::string>(outputFile1), std::ostream_iterator<std::string>(outputFile2));
-			std::copy(std::cbegin(vecStr2), std::cend(vecStr2), outputPath);
-			std::copy(std::cbegin(vecStr1), std::cend(vecStr1), outputFilename);
+			std::ranges::copy(vecStr2, outputPath);
+			std::ranges::copy(vecStr1, outputFilename);
 		}
 	}
 	~sharedResource() {
