@@ -459,12 +459,14 @@ class MusicPlayerGUI:
     def scrapeMp3paw(self):
         try:
             self.musicDownload = MusicDownload()
-            self.musicDownload.mp3pawscraper(self.artistNameQueue.get(), self.songNameQueue.get())
+            songName, artistName = self.artistNameQueue.get(), self.songNameQueue.get()
+            self.musicDownload.mp3pawscraper(artistName, songName)
             if not musicDownloadNotification.empty():
                 downloadMessage()
-                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                 while not musicDownloadNotification.empty():
                     _ = musicDownloadNotification.get(block=False)
+                if self.musicDownloadList.qsize() == 1:
+                    tkinter.messagebox.showinfo('Download Message', f'Download Complete\n{songName} by {artistName}')
                 self.updateSongList()
         except ElementClickInterceptedException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
@@ -506,7 +508,8 @@ class MusicPlayerGUI:
     def scrapeNetnaija(self):
         try:
             self.videoDownload = VideoDownLoad()
-            mp4Link, srtLink = self.videoDownload.findFileLink(self.movieNameQueue.get(), self.seasonQueue.get(), self.episodeQueue.get())
+            movieName, season, episode = self.movieNameQueue.get(), self.seasonQueue.get(), self.episodeQueue.get()
+            mp4Link, srtLink = self.videoDownload.findFileLink(movieName, season, episode)
             downloadExecutorList = []
             with ThreadPoolExecutor(max_workers=2) as downloadExecutor:
                 downloadExecutorList.append(downloadExecutor.submit(self.videoDownload.startMP4Download, (mp4Link)))
@@ -516,9 +519,11 @@ class MusicPlayerGUI:
             # if both downloads are complete and successful
             if videoDownloadNotification.empty() == False:
                 downloadMessage()
-                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                 while not videoDownloadNotification.empty():
                     _ = videoDownloadNotification.get(block=False)
+                if self.videoDownloadList.qsize() == 1:
+                    tkinter.messagebox.showinfo('Download Message', f'Download Complete\n{movieName}-{season}-E{episode}')
+
                 
         except IndexError:
             tkinter.messagebox.showerror('Error Message', f'{videoDownloadErrors.get()}')
@@ -548,12 +553,15 @@ class MusicPlayerGUI:
     def scrapeTFPDL(self):
         try:
             self.tfpdlVideoDownload = TFPDLVideoDownload()
-            self.tfpdlVideoDownload.download(self.movieNameQueue.get(), self.seasonQueue.get(), self.episodeQueue.get())
+            movieName, season, episode = self.movieNameQueue.get(), self.seasonQueue.get(), self.episodeQueue.get()
+            self.tfpdlVideoDownload.download(movieName, season, episode)
             if tfpdl_videoDownloadNotification.empty() == False:
                 downloadMessage()
-                tkinter.messagebox.showinfo('Download Message', f'Download Complete')
                 while not tfpdl_videoDownloadNotification.empty():
                     _ = tfpdl_videoDownloadNotification.get(block=False)
+                if self.videoDownloadList.qsize() == 1:
+                    tkinter.messagebox.showinfo('Download Message', f'Download Complete\n{movieName}-{season}-E{episode}')
+
         except IndexError:
             tkinter.messagebox.showerror('Error Message', f'{tfpdl_videoDownloadErrors.get()}')
         except FileNotFoundError:
