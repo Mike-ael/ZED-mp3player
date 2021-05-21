@@ -467,7 +467,7 @@ class MusicPlayerGUI:
                     _ = musicDownloadNotification.get(block=False)
                 if self.musicDownloadList.qsize() == 1:
                     tkinter.messagebox.showinfo('Download Message', f'Download Complete\n{songName} by {artistName}')
-                self.updateSongList()
+                Thread(target = self.updateSongList, args=[], daemon=True).start()
         except ElementClickInterceptedException:
             tkinter.messagebox.showerror('Error Message', f'{musicDownloadErrors.get()}')
         except WebDriverException:
